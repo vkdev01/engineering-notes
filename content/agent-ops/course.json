@@ -1,0 +1,7 @@
+{
+  "order": 2,
+  "title": "Agent Ops",
+  "subtitle": "The unglamorous half of running agents in production: what to do when a session burns $40, which model to reach for, and how to review a run you did not watch. A short course, and a second collection to show the structure scales.",
+  "version": "Draft 0.1",
+  "status": "draft"
+}
