@@ -1,17 +1,17 @@
 # Spec-sheet tutorial template
 
-A content-driven Next.js template for technical tutorials and references. Course sidebar
-with search and nested topics, one reading column, seven light colour schemes, interactive
-exercises mounted from markdown, and an AI assistant that answers from your content using
-the Sarvam API.
+A content-driven Next.js template for a **library of technical courses**. Each course is a
+folder of markdown files; each section is one file. Course sidebar with search and nested
+topics, one reading column, seven light colour schemes, interactive exercises mounted from
+markdown, and an AI assistant that answers from the collection using the Sarvam API.
 
 The layout follows the shape of [engineering-atlas.in](https://engineering-atlas.in/):
 white canvas, a wide left sidebar of numbered sections with the active one highlighted and
 its topics nested underneath, breadcrumbs above a large heading, a stat row, and a
 "by the end of this section you can" card driven by frontmatter.
 
-Everything you write lives in `content/*.md`. The app is generic: change the markdown, the
-course title, and you have a different tutorial.
+Everything you write lives in `content/<course>/*.md`. The app is generic: add a folder, add
+markdown files, and you have another course in the same library.
 
 ---
 
@@ -36,25 +36,66 @@ Node 20+ required. Built and verified on Next.js 14.2.35.
 
 ## Content model
 
+`content/` is a **library**. Each immediate subfolder is a course, and each markdown file
+inside it is one section. Nothing is registered anywhere — drop a folder in and it appears
+in the library, in the sidebar and in the assistant's index.
+
 ```
 content/
-  course.json                  course-level metadata
-  01-why-agents-fail.md        one file per section
-  02-what-a-harness-is.md
-  ...
+  site.json                    library title, tagline, description
+  harness-engineering/         course 1  →  /c/harness-engineering
+    course.json                course metadata
+    01-why-agents-fail.md      section   →  /c/harness-engineering/01-why-agents-fail
+    02-what-a-harness-is.md
+    ...
+  agent-ops/                   course 2  →  /c/agent-ops
+    course.json
+    01-incident-review.md
+    ...
+```
+
+**To add a course:** create a folder with a `course.json` in it and at least one `.md`.
+It shows up on the library page, ordered by the `order` field.
+
+**To grow a course:** add another `.md` file to its folder. Order comes from the
+frontmatter, so a new section slots in wherever you put it. A section can be as long as you
+like — sub-headings, tables, callouts and exercises all work, and the sidebar, "on this
+page" list and prev/next are generated from the file itself.
+
+**URLs**
+
+| Path | Renders |
+| --- | --- |
+| `/` | the library — one card per course |
+| `/c/<course>/` | course overview — hero, counts, one card per section |
+| `/c/<course>/<file>` | one section |
+
+### `site.json`
+
+```json
+{
+  "title": "Engineering Notes",
+  "tagline": "A small library of technical references.",
+  "description": "Used for the page meta description."
+}
 ```
 
 ### `course.json`
 
 ```json
 {
+  "order": 1,
   "title": "Harness Engineering",
   "subtitle": "One sentence that appears under the title.",
   "version": "Reference 1.0",
+  "status": "draft",
   "credit": "Learn Harness Engineering (MIT)",
   "creditUrl": "https://github.com/…"
 }
 ```
+
+`order` controls the position on the library page. `status` is optional and is shown on the
+course card, which is useful while a course is half-written.
 
 ### Section frontmatter
 
@@ -72,7 +113,8 @@ outcomes:             # optional; renders the "by the end you can" card
 ---
 ```
 
-The filename is the URL: `content/03-repo-as-source-of-truth.md` → `/read/03-repo-as-source-of-truth`.
+The filename is the URL: `content/harness-engineering/03-repo-as-source-of-truth.md` →
+`/c/harness-engineering/03-repo-as-source-of-truth`.
 
 ### Directives
 
@@ -170,14 +212,16 @@ A floating **Ask the docs** panel. Answers are grounded in your markdown only.
 
 **How a question is answered**
 
-1. `POST /api/chat` receives the conversation.
-2. `lib/retrieval.ts` scores every `##`-level chunk with BM25 and returns the top 4,
-   padding with section intros when a short query only matches one clause.
+1. `POST /api/chat` receives the conversation and the course the reader is in.
+2. `lib/retrieval.ts` scores every `##`-level chunk in the library with BM25, preferring
+   the current course, and returns the top 4 — padding with section intros when a short
+   query only matches one clause.
 3. The chunks are put in a system prompt that instructs the model to answer only from
    them, cite sections as `(§2.2)`, and admit when something is not covered.
 4. `lib/sarvam.ts` calls `POST https://api.sarvam.ai/v1/chat/completions` with the
    `api-subscription-key` header.
-5. The reply is returned with the source list, rendered as links to the exact clause.
+5. The reply is returned with the source list, rendered as links to the exact clause,
+   each labelled with the course it came from.
 
 **Configuration** (`.env.local`, server-side only — the key is never sent to the browser):
 
@@ -257,20 +301,25 @@ Set `SARVAM_API_KEY` in the host's environment, never in the repo.
 
 ```
 app/
-  layout.tsx              shell, theme bootstrap, top bar, footer, chat dock
-  page.tsx                landing page (hero + contents)
-  read/[slug]/page.tsx    the three-column section view (statically generated)
-  api/chat/route.ts       retrieval + Sarvam proxy
-  globals.css             design system and the six schemes
+  layout.tsx                    shell, theme bootstrap, top bar, footer, chat panel
+  page.tsx                      the library — one card per course
+  c/[course]/page.tsx           course overview (hero + section cards)
+  c/[course]/[slug]/page.tsx    one section: sidebar, article, prev/next
+  api/chat/route.ts             retrieval + Sarvam proxy
+  globals.css                   design system and the seven schemes
 components/
-  TopBar.tsx  ThemePicker.tsx  SectionBody.tsx  ChatDock.tsx
-  exercises/              Scorecard, ContextBudget, Checklist, registry
+  TopBar.tsx  ThemePicker.tsx  SectionBody.tsx  ChatPanel.tsx  ChatButton.tsx
+  ContentsNav.tsx  MenuToggle.tsx
+  exercises/                    Scorecard, ContextBudget, Checklist, registry
 lib/
-  content.ts              read + parse markdown, headings, prev/next
-  markdown.ts             markdown → segments (html, callouts, exercises)
-  retrieval.ts            chunking and BM25
-  sarvam.ts               Sarvam chat client
-content/                  your tutorial
+  content.ts                    scan content/, parse markdown, headings, prev/next
+  markdown.ts                   markdown → segments (html, callouts, exercises)
+  retrieval.ts                  chunking and BM25 across the whole library
+  sarvam.ts                     Sarvam chat client
+content/
+  site.json
+  <course>/course.json
+  <course>/*.md
 ```
 
 ---
@@ -278,7 +327,7 @@ content/                  your tutorial
 ## Notes
 
 - Pinned to Next 14.2.35 (the patched 14.x line). Upgrading to Next 15+ requires making
-  `params` a `Promise` in `app/read/[slug]/page.tsx` and its `generateMetadata`.
+  `params` a `Promise` in `app/c/[course]/[slug]/page.tsx` and its `generateMetadata`.
 - Fonts load from Google Fonts via `@import` in `globals.css`, so there is no build-time
   font fetch. Swap for `next/font` if you want them self-hosted.
 - The retrieval is intentionally dependency-free. For a large corpus, move to embeddings
