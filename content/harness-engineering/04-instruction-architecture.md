@@ -3,7 +3,7 @@ section: "4"
 title: "Instruction architecture"
 kicker: "Instructions"
 abstract: "Why a 600-line AGENTS.md makes an agent worse, and where to put the rule that actually matters."
-time: "14 min"
+time: "20 min"
 order: 4
 outcomes:
   - "Explain why a 600-line instruction file makes an agent worse"
@@ -81,4 +81,59 @@ A short root file whose job is to route, not to contain everything. In it: the h
 
 :::qa[You have 600 lines of accumulated rules. How do you cut it down?]
 Sort by consequence, not by topic. Anything that prevented an incident stays at the root. Anything that describes how a subsystem works moves into that subsystem's doc. Anything you cannot point at a failure for gets deleted — a rule with no incident behind it is a tax on every session. Then add the routing table so nothing is lost.
+:::
+
+## 4.6 Three repositories, three entry files
+
+The pattern is stable; the content is not. Three shapes you are likely to meet.
+
+```markdown
+# service (one app, one deployable) — ~70 lines
+## Startup: read progress.md → feature_list.json → ./init.sh
+## Invariants: no secrets · all SQL via repo layer · every route behind requireAuth()
+## Read on demand: API → docs/api.md · DB → docs/database.md
+## Done: lint · unit · e2e · evidence recorded · cold clone starts
+```
+
+```markdown
+# monorepo (many packages) — ~110 lines, mostly routing
+## Startup: same three steps
+## Invariants: no cross-package imports except through src/shared · no new deps without an ADR
+## Packages: apps/web → apps/web/AGENTS.md · services/api → services/api/AGENTS.md
+## Done: `pnpm -w check` (runs every package's gates)
+```
+
+```markdown
+# library (published package) — ~50 lines
+## Startup: read CHANGELOG.md → ./init.sh
+## Invariants: no breaking change without a major bump · public API surface is src/index.ts
+## Done: build · type tests · examples still compile
+```
+
+In all three, the shape is the same: how to start, what never to break, where to look next, how to prove it is done. The monorepo version is longer only because routing is a bigger share of its job.
+
+## 4.7 Auditing 600 lines down to 90
+
+A real pass, by category rather than by line.
+
+| What you find | Where it goes | Why |
+| --- | --- | --- |
+| Hard invariants (no secrets, no `eval`) | stays at the top | must be in the first screenful |
+| "How our API works" (140 lines) | `docs/api.md`, one pointer line | only needed on API work |
+| Three conflicting style rules | pick one, delete two | contradiction is worse than absence |
+| Historical incident notes | `docs/incidents.md` | useful, but not per-task |
+| Rules with no incident behind them | deleted | a tax with no evidence |
+| Definition of done (8 lines) | stays, promoted into `check` | becomes executable instead of prose |
+
+:::figure[How an instruction file grows, and how to break the loop]{id="bloat" note="each individual rule was justified by a real failure"}
+:::
+
+The result is not a shorter file for its own sake. It is a file where the first twenty lines are the ones that matter, which is the only part of a long context models use reliably.
+
+:::qa[How do you decide what stays at the root?]
+Two tests. Does it apply to *every* change, or only to work in one area? And would violating it cause an incident rather than a preference? Both yes — root. Otherwise it is a topic doc. The exception is the definition of done, which stays at the root even though it is long, because it is the thing every task is judged against.
+:::
+
+:::qa[Our rules contradict each other. What now?]
+Decide which one is true, delete the other, and note the decision in `progress.md` so nobody re-litigates it. Contradiction is more expensive than either rule being wrong, because the agent picks one at random and you cannot predict which.
 :::

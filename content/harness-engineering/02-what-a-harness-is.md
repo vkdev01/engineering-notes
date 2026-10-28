@@ -3,7 +3,7 @@ section: "2"
 title: "What a harness is"
 kicker: "Definition"
 abstract: "A harness is the engineering infrastructure outside the model weights. It has five subsystems. The prompt is one artefact inside the first of them, and treating it as the whole thing is the most common reason sessions fail."
-time: "10 min"
+time: "16 min"
 order: 2
 outcomes:
   - "Define the five subsystems of a harness and what each carries"
@@ -92,4 +92,41 @@ Remove one at a time and re-run an identical task. The removal that hurts most i
 
 :::qa[What does "the repo is the spec" mean in practice?]
 That anything the agent needs to know must live in the repository, because the repository is the only thing it can read. A decision in Slack, a convention in someone's head, a runbook in Confluence — all of it is invisible. "In practice" means: if a rule matters, there is a file that states it, close to the code it constrains.
+:::
+
+## 2.6 What "good" looks like, subsystem by subsystem
+
+Abstract definitions are easy to agree with and hard to act on. Concrete levels are easier to argue about, and argument is what moves a team forward.
+
+| Subsystem | Absent | Adequate | Strong |
+| --- | --- | --- | --- |
+| Instructions | No entry file; conventions in chat | `AGENTS.md` with rules and done criteria | Entry file under ~200 lines, routing to topic docs, pruned quarterly |
+| Tools | Agent can only edit files | Shell and test runner available | Lint, tests, e2e, scripts, and a single `check` command |
+| Environment | "Works on my machine" | Dependencies install | `init.sh` proves baseline on a cold clone |
+| State | Chat history only | Progress notes somewhere | `feature_list.json` + `progress.md` + decisions, read at startup |
+| Feedback | The agent's own judgement | Unit tests exist | Three gates, evidence recorded, checker separate from worker |
+
+Score each row, then fix the lowest. That is the whole scorecard, and it takes about four minutes to fill in.
+
+## 2.7 Two repositories, same agent, same week
+
+A useful thought experiment, because it isolates the variable.
+
+| | Repo A | Repo B |
+| --- | --- | --- |
+| Entry file | none | 90 lines, routes to three docs |
+| Environment | README says "install deps" | `init.sh`, green on a cold clone |
+| State | none | feature list + progress log |
+| Feedback | unit tests only | unit + e2e, evidence recorded |
+| Sessions | 3 sessions, none finished | 2 sessions, feature shipped |
+| Rework | ~40% | ~8% |
+
+Same model, same week, same engineer. The difference is entirely in the four rows above. This is why the honest answer to "which model should we use" is usually "which harness do you have" — the model sets the ceiling, the harness decides whether you get near it.
+
+:::qa[Is it fair to compare two repositories rather than two models?]
+It is the only fair comparison. Model benchmarks hold the harness constant and vary the model; teams do the opposite — they vary the harness while believing they varied the model. Holding the repository constant and changing one subsystem is how you learn anything.
+:::
+
+:::qa[What would you say to "we do not have time to build a harness"?]
+It is roughly six hours for the first version: one script, two files, one entry document, one check command. Most teams spend more than that per month re-explaining the repository to agents. The question is not whether you pay, but whether you pay once or continuously.
 :::

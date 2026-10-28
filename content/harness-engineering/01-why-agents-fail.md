@@ -3,7 +3,7 @@ section: "1"
 title: "Why capable agents fail"
 kicker: "Diagnosis"
 abstract: "Benchmark scores measure a clean task with a supplied environment. Your repository supplies neither, so the same model behaves differently. This section names the gap and the five ways sessions break."
-time: "8 min"
+time: "14 min"
 order: 1
 outcomes:
   - "Name the capability gap between a benchmark and your own repository"
@@ -77,4 +77,58 @@ Not "which model", but "which layer failed". Was the task ambiguous, was the con
 
 :::qa[How would you explain the difference between a capability gap and a harness-induced failure?]
 A capability gap is something the model genuinely cannot do. A harness-induced failure is something it can do, but could not do *here* — because it never saw the rule, could not run the check, or had no record of what the last session decided. The diagnostic value is that the second is fixable today, and the first usually is not.
+:::
+
+## 1.5 Three transcripts, three layers
+
+The fastest way to learn attribution is to read three failures side by side. All three are real shapes; the names are invented.
+
+```text
+# A — wrong output
+agent: added a /search endpoint returning all products
+       tests: 14 passing
+you:   "did you use the existing repository layer?"
+agent: "there was no repository layer mentioned, so I created one"
+→ LAYER: instructions. The convention existed; it was not in the repo.
+```
+
+```text
+# B — no output
+agent: [40 minutes] reading files, running migrations, failing, re-reading
+you:   "why did it take 40 minutes to start?"
+agent: "the test database was not initialised, so I rebuilt it twice"
+→ LAYER: environment. init.sh did not exist, so every session paid this.
+```
+
+```text
+# C — slow output
+agent: rewrote the export component four times, each time a different approach
+you:   "why four rewrites?"
+agent: "I could not tell which version was correct, so I tried another"
+→ LAYER: feedback. No e2e check, so no way to stop and say "this one passes".
+```
+
+:::figure[Which layer did the session fail in?]{id="triage" note="attribute first, change second"}
+:::
+
+The discipline is one sentence long: name the layer before you change anything. It is also the thing that stops "the model isn't good enough" from becoming your default explanation, which is expensive because it leads to a model swap that fixes nothing.
+
+## 1.6 The economics of a vague spec
+
+A wrong guess is not one mistake. It is the guess, plus the code written on top of it, plus the review, plus the removal, plus the second attempt — and the second attempt often needs the spec you did not write the first time.
+
+| Path | What you spend | What you get |
+| --- | --- | --- |
+| Vague ticket | 40 seconds of writing saved | 3–5× rework, plus a review cycle |
+| Written spec | ~3 minutes | One attempt, verifiable |
+| Written spec + check | ~6 minutes | One attempt, verifiable, *and* the next one is cheaper |
+
+The third row is the one people skip, and it is the only one that compounds. A check you write today is a check every future session inherits.
+
+:::qa[Why is "the agent is bad at X" usually the wrong conclusion?]
+Because it is unfalsifiable and it stops the investigation. "Bad at following conventions" is really "the conventions are not in the repo". "Bad at long tasks" is really "there is no state between sessions". Both are fixable this afternoon; neither is fixed by a better model.
+:::
+
+:::qa[What does a wrong guess actually cost, in a session?]
+Roughly: the work to build it, the work to notice it, the work to undo it, and the second attempt — and if the guess was structural, the second attempt touches everything the first one touched. The written sentence that would have prevented it takes under a minute.
 :::

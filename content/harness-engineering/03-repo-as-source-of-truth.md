@@ -3,7 +3,7 @@ section: "3"
 title: "The repo as source of truth"
 kicker: "Instructions"
 abstract: "An agent has three inputs: the task, the contents of the repository, and the output of commands it runs. Slack, Jira and the decision you made on Friday are invisible to it."
-time: "9 min"
+time: "14 min"
 order: 3
 outcomes:
   - "Run the fresh-session test on your own repository"
@@ -67,4 +67,45 @@ It is only a problem for the agent, which cannot ask. Humans compensate for undo
 
 :::qa[Where should a hard constraint live: the root AGENTS.md or a module doc?]
 Where it will be read. If it applies to every change (never commit secrets, never use `eval`), the root file. If it applies when you touch a subsystem (all queries parameterised, all endpoints behind OAuth), the module doc next to that code — and a one-line pointer in the root file so the agent knows to open it.
+:::
+
+## 3.4 The five questions, answered badly and well
+
+The fresh-session test is only useful if you know what a passing answer looks like.
+
+| Question | Bad answer | Good answer |
+| --- | --- | --- |
+| What is this? | "Our backend" | `README.md`: three paragraphs, the domain, the three services, and who owns them |
+| How is it organised? | folder names only | `ARCHITECTURE.md`: request path, module boundaries, what may import what |
+| How do I run it? | "npm install && npm run dev" | `init.sh` that installs, lints, tests and prints the start command |
+| How do I verify? | "we have tests" | `npm run check` — one command, all three gates, exits non-zero |
+| Where are we now? | a Slack thread | `feature_list.json` + `progress.md` with the last verified state |
+
+The right-hand column is not more documentation. It is the same information, in a place the agent reads.
+
+## 3.5 A module doc that earns its place
+
+Proximity beats length, and the cheapest way to see that is to compare two placements of the same rule.
+
+```text
+# weak — a rule in a root file nobody opens for this task
+docs/conventions.md
+  "All database access must go through the repository layer."
+
+# strong — the same rule where the work happens
+src/api/ARCHITECTURE.md
+  ## Data access
+  Routes never touch the ORM. Every query goes through src/api/repo/*.
+  Why: two read replicas; the repo layer is where routing happens.
+  When adding an endpoint: add the query to repo/orders.ts first, then the route.
+```
+
+The second version is longer *and* more useful, because it arrives at the moment the agent is deciding where to put the query. Keep module docs to what someone needs in that directory, and leave architecture to `ARCHITECTURE.md`.
+
+:::qa[How much documentation is enough?]
+Enough that a competent stranger — human or agent — can start work without asking. That is usually five short documents, not fifty: the readme, the architecture note, the run script, the verification command, and the current state. Anything beyond that should be justified by a specific question it answers.
+:::
+
+:::qa[What is wrong with a big Confluence space as the source of truth?]
+Nothing, for humans who know where to look. Everything, for an agent, which cannot look. The agent reads the repository and the output of commands; a wiki is outside its world entirely. If a decision matters, it must be copied into the repo — ideally where it will be needed.
 :::

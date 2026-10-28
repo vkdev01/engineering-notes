@@ -3,7 +3,7 @@ section: "6"
 title: "Scope and feature lists"
 kicker: "Scope"
 abstract: "One feature at a time, or nothing finishes. Attention as arithmetic, and the three fields a feature row needs before it can be verified."
-time: "15 min"
+time: "20 min"
 order: 6
 outcomes:
   - "Compute the attention budget for k tasks in flight"
@@ -78,4 +78,57 @@ A to-do list is read by a human. This list is read by the scheduler (to pick wor
 
 :::qa[How do you stop an agent from doing "a little extra" while it is in there?]
 Give it a boundary it can check: the selected feature's behaviour and its verification command. Anything outside that is a new row in the list, not a detour. If a blocker forces a supporting change, the rule is "narrow and documented", not "while I'm here".
+:::
+
+## 6.4 Splitting "add authentication" into six rows
+
+The single most useful scoping exercise. Take the fat ticket and cut it along observable behaviour, not along implementation layers.
+
+| # | Behaviour | Verification |
+| --- | --- | --- |
+| 1 | A user can sign in with email + password and lands on the dashboard | `e2e -- auth.signin` |
+| 2 | A wrong password shows an inline error and does not create a session | `e2e -- auth.signin.bad` |
+| 3 | A signed-in user stays signed in after a refresh | `e2e -- auth.session.persist` |
+| 4 | Signing out clears the session and redirects to /login | `e2e -- auth.signout` |
+| 5 | Five failed attempts lock the account for 15 minutes | `e2e -- auth.lockout` |
+| 6 | Password reset sends a link that expires in one hour | `e2e -- auth.reset` |
+
+Six rows, six checks, six commits. Any one of them is a morning's work with a verification you can run. The original ticket is a quarter's worth of guessing.
+
+```json
+{ "id": "auth-002", "priority": 2, "status": "not_started",
+  "user_visible_behavior": "A wrong password shows an inline error and creates no session",
+  "verification": ["npm run e2e -- auth.signin.bad"] }
+```
+
+Note what the row does *not* contain: no mention of bcrypt, middleware, cookies or migrations. Those are implementation choices the agent can make; the row fixes the outcome and the proof.
+
+## 6.5 The scheduler, in pseudocode
+
+The reason the list must be machine-readable is that something has to read it.
+
+```text
+while there is a feature with status == not_started:
+    f = highest-priority not_started
+    assert no other feature is in_progress        # WIP = 1
+    f.status = in_progress
+    implement f.verification first, then f.behaviour
+    result = run f.verification
+    if result.passed:
+        f.evidence = result.output
+        f.status = passing
+        commit
+    else:
+        f.status = blocked if attempts >= 3 else in_progress
+    write progress.md
+```
+
+Two properties matter. `assert no other feature is in_progress` is the whole discipline in one line. And `f.evidence = result.output` is what makes "passing" mean something later, when nobody remembers the session.
+
+:::qa[Why cut features by behaviour rather than by layer?]
+Because behaviour is verifiable and layers are not. "Add the auth middleware" has no observable outcome, so it cannot be tested, so it cannot be marked done honestly. "A wrong password shows an error and creates no session" can be checked in ten seconds, which is what makes it a unit of work.
+:::
+
+:::qa[How do you handle a feature that turns out to be three features?]
+Stop, split it in the list, and finish the smallest one that is independently verifiable. The rule is not "never discover scope" — discovery is normal — it is "do not expand the current row", because an expanded row loses its verification and drifts into guesswork.
 :::

@@ -3,7 +3,7 @@ section: "5"
 title: "Continuity and initialisation"
 kicker: "State"
 abstract: "Sessions end; understanding does not have to. Why long tasks lose the thread, what a written handoff contains, and why initialisation deserves its own phase."
-time: "12 min"
+time: "18 min"
 order: 5
 outcomes:
   - "Explain why a larger context window does not solve continuity"
@@ -92,4 +92,58 @@ Four things: the verified state (what passes), the active item (what is half-don
 
 :::qa[Why should initialisation be a separate phase?]
 Because it optimises a different objective. Implementation maximises verified features; initialisation maximises the reliability of everything after it. Mixed together, the agent does what is visible — writes code — and skips what is invisible — proving the test runner works. You then pay for that in session two, when nobody can run anything.
+:::
+
+## 5.6 The same task, two transcripts
+
+The difference between a state-less session and a stateful one is visible in the first three actions.
+
+```text
+# no state
+agent: [reads 34 files over 8 minutes]
+agent: "I see a Next.js app with an API layer. I'll start by exploring the schema."
+agent: [20 minutes] implements 40% of the feature
+agent: [context fills] "I've made good progress" → session ends
+→ next session starts from zero and picks a different approach
+```
+
+```text
+# with state
+agent: reads progress.md → "feat-004 passing, feat-005 in progress, next: cursor encoder"
+agent: reads feature_list.json → verification is `npm run e2e -- orders.pagination`
+agent: runs ./init.sh → green in 40 seconds
+agent: [20 minutes] finishes the encoder, runs the check, records evidence
+→ next session starts on feat-006 with no re-reading at all
+```
+
+:::figure[What a session leaves behind]{id="handoff" note="four artefacts, none of them a chat transcript"}
+:::
+
+## 5.7 init.sh for three stacks
+
+The script is boring on purpose. What matters is that it is one command and that it fails loudly.
+
+```bash
+# node
+set -euo pipefail
+npm ci && npm run lint && npm run test --silent && npm run e2e --silent
+
+# python
+set -euo pipefail
+python -m venv .venv && . .venv/bin/activate
+pip install -e ".[dev]" && ruff check . && mypy app && pytest -q
+
+# monorepo
+set -euo pipefail
+pnpm install --frozen-lockfile && pnpm -w lint && pnpm -w test && pnpm -w e2e
+```
+
+Three rules that make the difference between a script people trust and one they skip: fail fast (`-e`), fail loud (no `|| true`), and print a single success line so the agent can tell the difference between "passed" and "printed nothing".
+
+:::qa[Why does the script matter more than the prose describing it?]
+Because the agent runs commands and reads output; it does not absorb prose about running commands. A `README` that says "run the tests" is a hint. A script that runs them and exits non-zero is a fact, and facts are what verification needs.
+:::
+
+:::qa[What goes wrong if init.sh takes six minutes?]
+Sessions stop running it. Six minutes at the start of every session is a real cost, and the agent — like a person — will skip a slow step under time pressure and then work on an unverified baseline. Keep it under a minute where you can: cache dependencies, parallelise the gates, and split the slow e2e into a separate command the definition of done can still call.
 :::
