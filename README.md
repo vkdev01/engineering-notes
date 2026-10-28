@@ -205,10 +205,22 @@ Reusable CSS classes: `.sc` / `.sc-item` (slider rows), `.readout` (the result l
 
 ## Colour schemes
 
-Seven light schemes, switched by the swatches in the top bar and remembered in
-`localStorage` under `tutorial-theme`:
+Seven light schemes, chosen from the accent menu in the top bar — a single icon button that
+opens a list with a dot and a name per scheme — and remembered in `localStorage` under
+`tutorial-theme`:
 
-`atlas` (default, violet) · `oxblood` · `ink` · `moss` · `cobalt` · `rose` · `charcoal`
+| id | menu label | accent |
+| --- | --- | --- |
+| `atlas` | Violet (default) | `#6d28d9` |
+| `ink` | Navy | `#1f4e79` |
+| `moss` | Moss | `#3f6212` |
+| `cobalt` | Cobalt | `#1d4ed8` |
+| `rose` | Rose | `#a61e4d` |
+| `bronze` | Bronze | `#8a5a00` |
+| `wine` | Wine | `#9d2f3d` |
+
+`charcoal` and `oxblood` were renamed to `bronze` and `wine`; `ThemePicker` maps the old
+ids so a stored preference survives.
 
 Each is one block of CSS variables at the top of `app/globals.css`:
 
@@ -222,8 +234,8 @@ Each is one block of CSS variables at the top of `app/globals.css`:
 }
 ```
 
-To add a scheme: copy a block, change the hex values, add it to `THEMES` in
-`components/ThemePicker.tsx`. To change the default, edit `data-theme` on the `<html>`
+To add a scheme: copy a block, change the hex values, add `{ id, label, swatch }` to
+`THEMES` in `components/ThemePicker.tsx`. To change the default, edit `data-theme` on the `<html>`
 element in `app/layout.tsx`.
 
 ---
