@@ -4,32 +4,29 @@ import type { Metadata } from "next";
 import SectionBody from "@/components/SectionBody";
 import ContentsNav from "@/components/ContentsNav";
 import MenuToggle from "@/components/MenuToggle";
-import { getCourse, getDoc, getDocs, neighbours } from "@/lib/content";
+import { countExercises, getCourse, getCourses, getDoc, getDocs, neighbours } from "@/lib/content";
 
-type Params = { slug: string };
-
-function count(body: string) {
-  return body.match(/^:::exercise/gm)?.length ?? 0;
-}
+type Params = { course: string; slug: string };
 
 export function generateStaticParams(): Params[] {
-  return getDocs().map((doc) => ({ slug: doc.slug }));
+  return getCourses().flatMap((course) =>
+    getDocs(course.slug).map((doc) => ({ course: course.slug, slug: doc.slug })),
+  );
 }
 
 export function generateMetadata({ params }: { params: Params }): Metadata {
-  const doc = getDoc(params.slug);
+  const doc = getDoc(params.course, params.slug);
   return { title: doc ? `${doc.title} — §${doc.section}` : "Not found" };
 }
 
 export default function SectionPage({ params }: { params: Params }) {
-  const doc = getDoc(params.slug);
-  if (!doc) notFound();
+  const course = getCourse(params.course);
+  const doc = getDoc(params.course, params.slug);
+  if (!course || !doc) notFound();
 
-  const course = getCourse();
-  const docs = getDocs();
-  const { prev, next } = neighbours(doc.slug);
-  const exercises = count(doc.body);
-  const total = docs.reduce((n, d) => n + count(d.body), 0);
+  const docs = getDocs(course.slug);
+  const { prev, next } = neighbours(course.slug, doc.slug);
+  const exercises = countExercises(doc.body);
 
   const navDocs = docs.map((d) => ({
     slug: d.slug,
@@ -38,24 +35,30 @@ export default function SectionPage({ params }: { params: Params }) {
     abstract: d.abstract,
     time: d.time,
     headings: d.headings,
-    exercises: count(d.body),
+    exercises: countExercises(d.body),
   }));
 
   return (
     <div className="shell">
       <nav className="idx" aria-label="Contents">
-        <ContentsNav docs={navDocs} current={doc.slug} courseTitle={course.title} totalExercises={total} />
+        <ContentsNav
+          docs={navDocs}
+          current={doc.slug}
+          course={course.slug}
+          courseTitle={course.title}
+          totalExercises={course.exercises}
+        />
       </nav>
 
       <main className="doc">
         <div className="crumbrow">
           <MenuToggle />
           <span className="path">
-            <Link href="/">Home</Link>
+            <Link href="/">Library</Link>
             <span className="sep">/</span>
-            <span>§{doc.section}</span>
+            <Link href={`/c/${course.slug}`}>{course.title}</Link>
             <span className="sep">/</span>
-            <span className="here">{doc.title}</span>
+            <span className="here">§{doc.section}</span>
           </span>
         </div>
 
@@ -100,14 +103,14 @@ export default function SectionPage({ params }: { params: Params }) {
 
         <div className="pager">
           {prev ? (
-            <Link href={`/read/${prev.slug}`}>
+            <Link href={`/c/${course.slug}/${prev.slug}`}>
               <small>Previous</small>§{prev.section} · {prev.title}
             </Link>
           ) : (
             <span />
           )}
           {next ? (
-            <Link href={`/read/${next.slug}`} className="next">
+            <Link href={`/c/${course.slug}/${next.slug}`} className="next">
               <small>Next</small>§{next.section} · {next.title}
             </Link>
           ) : (

@@ -1,8 +1,10 @@
-import { getDocs } from "./content";
+import { allDocs, countExercises } from "./content";
 import { toPlain } from "./markdown";
 
 export type Chunk = {
   id: string;
+  course: string;
+  courseTitle: string;
   slug: string;
   section: string;
   sectionTitle: string;
@@ -38,7 +40,7 @@ function build(): Index {
   const chunks: Chunk[] = [];
   const df = new Map<string, number>();
 
-  for (const doc of getDocs()) {
+  for (const { course, doc } of allDocs()) {
     const parts = doc.body.split(/^##\s+/m);
     parts.forEach((part, i) => {
       const firstLine = part.split("\n")[0].replace(/[*_`]/g, "").trim();
@@ -46,7 +48,9 @@ function build(): Index {
       const text = toPlain(i === 0 ? part : part.slice(firstLine.length));
       if (text.length < 40) return;
       chunks.push({
-        id: `${doc.slug}#${i}`,
+        id: `${course.slug}/${doc.slug}#${i}`,
+        course: course.slug,
+        courseTitle: course.title,
         slug: doc.slug,
         section: doc.section,
         sectionTitle: doc.title,
@@ -66,17 +70,23 @@ function build(): Index {
   return index;
 }
 
-/** BM25 over the section chunks, plus a bonus for matches in the heading. */
-export function retrieve(query: string, k = 4): Chunk[] {
+/**
+ * BM25 over the section chunks, plus a bonus for matches in the heading.
+ * Pass `course` to prefer the course the reader is currently in.
+ */
+export function retrieve(query: string, k = 4, course?: string): Chunk[] {
   const { chunks, df } = build();
   const terms = tokenize(query);
-  if (!terms.length) return chunks.slice(0, k);
+  const pool = course ? chunks.filter((c) => c.course === course) : chunks;
+  const search = pool.length ? pool : chunks;
 
-  const N = chunks.length || 1;
+  if (!terms.length) return search.slice(0, k);
+
+  const N = search.length || 1;
   const k1 = 1.5;
   const b = 0.75;
 
-  const prepared = chunks.map((chunk) => {
+  const prepared = search.map((chunk) => {
     const words = tokenize(chunk.text);
     const counts = new Map<string, number>();
     for (const w of words) counts.set(w, (counts.get(w) ?? 0) + 1);
@@ -110,14 +120,14 @@ export function retrieve(query: string, k = 4): Chunk[] {
   if (picked.length < k) {
     const intros: Chunk[] = [];
     for (const hit of picked) {
-      const intro = chunks.find((c) => c.slug === hit.slug && c.heading === c.sectionTitle);
+      const intro = search.find((c) => c.slug === hit.slug && c.heading === c.sectionTitle);
       if (intro && !picked.some((p) => p.id === intro.id) && !intros.some((i) => i.id === intro.id)) {
         intros.push(intro);
       }
       if (picked.length + intros.length >= k) break;
     }
     if (!picked.length) {
-      for (const c of chunks) {
+      for (const c of search) {
         if (c.heading === c.sectionTitle && intros.length < k) intros.push(c);
       }
     }
@@ -130,8 +140,8 @@ export function retrieve(query: string, k = 4): Chunk[] {
 export function contextBlock(chunks: Chunk[], limit = 1600): string {
   let out = "";
   for (const c of chunks) {
-    const piece = `\n---\n[§${c.section} ${c.sectionTitle} — ${c.heading}]\n${c.text.slice(0, limit)}\n`;
-    if (out.length + piece.length > 7000) break;
+    const piece = `\n---\n[${c.courseTitle} · §${c.section} ${c.sectionTitle} — ${c.heading}]\n${c.text.slice(0, limit)}\n`;
+    if (out.length + piece.length > 8000) break;
     out += piece;
   }
   return out.trim();

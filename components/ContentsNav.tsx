@@ -16,11 +16,13 @@ type NavDoc = {
 export default function ContentsNav({
   docs,
   current,
+  course,
   courseTitle,
   totalExercises,
 }: {
   docs: NavDoc[];
   current: string;
+  course: string;
   courseTitle: string;
   totalExercises: number;
 }) {
@@ -54,7 +56,7 @@ export default function ContentsNav({
       </label>
 
       {first ? (
-        <Link className="cta" href={`/read/${first.slug}`}>
+        <Link className="cta" href={`/c/${course}/${first.slug}`}>
           <div className="row">
             <span className="ic">§</span>
             <span>
@@ -72,7 +74,7 @@ export default function ContentsNav({
       <ol>
         {filtered.map((doc) => (
           <li key={doc.slug} className={doc.slug === current ? "on" : undefined}>
-            <Link className="item" href={`/read/${doc.slug}`}>
+            <Link className="item" href={`/c/${course}/${doc.slug}`}>
               <span className="n">§{doc.section}</span>
               <span>{doc.title}</span>
             </Link>

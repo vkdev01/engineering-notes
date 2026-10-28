@@ -4,8 +4,25 @@ import matter from "gray-matter";
 
 export type Heading = { text: string; id: string };
 
+export type Course = {
+  /** folder name under content/ — also the URL segment */
+  slug: string;
+  title: string;
+  subtitle?: string;
+  version?: string;
+  status?: string;
+  credit?: string;
+  creditUrl?: string;
+  order: number;
+  /** number of sections, filled in by getCourses() */
+  sections: number;
+  exercises: number;
+  minutes: number;
+};
+
 export type Doc = {
   slug: string;
+  course: string;
   section: string;
   title: string;
   kicker?: string;
@@ -16,14 +33,6 @@ export type Doc = {
   outcomes?: string[];
   body: string;
   headings: Heading[];
-};
-
-export type Course = {
-  title: string;
-  subtitle?: string;
-  version?: string;
-  credit?: string;
-  creditUrl?: string;
 };
 
 const CONTENT_DIR = path.join(process.cwd(), "content");
@@ -38,7 +47,7 @@ export function slugify(input: string): string {
     .slice(0, 60);
 }
 
-/** Pull `##` / `###` headings out of raw markdown, ignoring fenced code. */
+/** Pull `##` headings out of raw markdown, ignoring fenced code. */
 function extractHeadings(md: string): Heading[] {
   const out: Heading[] = [];
   let inFence = false;
@@ -54,27 +63,38 @@ function extractHeadings(md: string): Heading[] {
   return out;
 }
 
-export function getCourse(): Course {
-  const file = path.join(CONTENT_DIR, "course.json");
-  if (!fs.existsSync(file)) return { title: "Tutorial" };
-  return JSON.parse(fs.readFileSync(file, "utf8")) as Course;
+function courseDirs(): string[] {
+  if (!fs.existsSync(CONTENT_DIR)) return [];
+  return fs
+    .readdirSync(CONTENT_DIR, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && !e.name.startsWith("."))
+    .map((e) => e.name)
+    .filter((name) => fs.existsSync(path.join(CONTENT_DIR, name, "course.json")));
 }
 
-let cache: Doc[] | null = null;
+const docCache = new Map<string, Doc[]>();
 
-export function getDocs(): Doc[] {
-  if (cache) return cache;
-  if (!fs.existsSync(CONTENT_DIR)) return [];
+export function countExercises(body: string): number {
+  return body.match(/^:::exercise/gm)?.length ?? 0;
+}
+
+export function getDocs(courseSlug: string): Doc[] {
+  const cached = docCache.get(courseSlug);
+  if (cached) return cached;
+
+  const dir = path.join(CONTENT_DIR, courseSlug);
+  if (!fs.existsSync(dir)) return [];
 
   const docs: Doc[] = fs
-    .readdirSync(CONTENT_DIR)
+    .readdirSync(dir)
     .filter((f) => f.endsWith(".md"))
     .map((file) => {
-      const raw = fs.readFileSync(path.join(CONTENT_DIR, file), "utf8");
+      const raw = fs.readFileSync(path.join(dir, file), "utf8");
       const { data, content } = matter(raw);
       const slug = file.replace(/\.md$/, "");
       return {
         slug,
+        course: courseSlug,
         section: String(data.section ?? slug.slice(0, 2)),
         title: String(data.title ?? slug),
         kicker: data.kicker ? String(data.kicker) : undefined,
@@ -89,16 +109,42 @@ export function getDocs(): Doc[] {
     })
     .sort((a, b) => a.order - b.order);
 
-  cache = docs;
+  docCache.set(courseSlug, docs);
   return docs;
 }
 
-export function getDoc(slug: string): Doc | undefined {
-  return getDocs().find((d) => d.slug === slug);
+export function getCourses(): Course[] {
+  return courseDirs()
+    .map((slug) => {
+      const meta = JSON.parse(fs.readFileSync(path.join(CONTENT_DIR, slug, "course.json"), "utf8"));
+      const docs = getDocs(slug);
+      return {
+        slug,
+        title: String(meta.title ?? slug),
+        subtitle: meta.subtitle ? String(meta.subtitle) : undefined,
+        version: meta.version ? String(meta.version) : undefined,
+        status: meta.status ? String(meta.status) : undefined,
+        credit: meta.credit ? String(meta.credit) : undefined,
+        creditUrl: meta.creditUrl ? String(meta.creditUrl) : undefined,
+        order: Number(meta.order ?? 999),
+        sections: docs.length,
+        exercises: docs.reduce((n, d) => n + countExercises(d.body), 0),
+        minutes: docs.reduce((n, d) => n + (parseInt(d.time ?? "0", 10) || 0), 0),
+      } satisfies Course;
+    })
+    .sort((a, b) => a.order - b.order || a.title.localeCompare(b.title));
 }
 
-export function neighbours(slug: string) {
-  const docs = getDocs();
+export function getCourse(slug: string): Course | undefined {
+  return getCourses().find((c) => c.slug === slug);
+}
+
+export function getDoc(courseSlug: string, slug: string): Doc | undefined {
+  return getDocs(courseSlug).find((d) => d.slug === slug);
+}
+
+export function neighbours(courseSlug: string, slug: string) {
+  const docs = getDocs(courseSlug);
   const i = docs.findIndex((d) => d.slug === slug);
   return {
     prev: i > 0 ? docs[i - 1] : undefined,
@@ -106,7 +152,19 @@ export function neighbours(slug: string) {
   };
 }
 
-/** How many `:::exercise` directives the course mounts in total. */
-export function exerciseCount(): number {
-  return getDocs().reduce((n, doc) => n + (doc.body.match(/^:::exercise/gm)?.length ?? 0), 0);
+/** Every doc across every course — used by the assistant's index. */
+export function allDocs(): { course: Course; doc: Doc }[] {
+  return getCourses().flatMap((course) =>
+    getDocs(course.slug).map((doc) => ({ course, doc })),
+  );
+}
+
+export function totals() {
+  const courses = getCourses();
+  return {
+    courses: courses.length,
+    sections: courses.reduce((n, c) => n + c.sections, 0),
+    exercises: courses.reduce((n, c) => n + c.exercises, 0),
+    minutes: courses.reduce((n, c) => n + c.minutes, 0),
+  };
 }
