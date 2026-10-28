@@ -1,6 +1,7 @@
 import { toSegments } from "@/lib/markdown";
 import { EXERCISES } from "./exercises/registry";
 import Figure from "./figures/Figures";
+import Mermaid from "./Mermaid";
 
 export default function SectionBody({ markdown }: { markdown: string }) {
   const segments = toSegments(markdown);
@@ -40,6 +41,10 @@ export default function SectionBody({ markdown }: { markdown: string }) {
               ) : null}
             </figure>
           );
+        }
+
+        if (seg.kind === "mermaid") {
+          return <Mermaid key={i} code={seg.code} caption={seg.caption} />;
         }
 
         if (seg.kind === "qa") {

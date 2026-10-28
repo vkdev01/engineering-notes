@@ -6,7 +6,8 @@ export type Segment =
   | { kind: "callout"; variant: "note" | "warn" | "pull"; title?: string; html: string }
   | { kind: "exercise"; id: string; label?: string; props: Record<string, string> }
   | { kind: "figure"; id: string; caption?: string; note?: string }
-  | { kind: "qa"; question: string; html: string };
+  | { kind: "qa"; question: string; html: string }
+  | { kind: "mermaid"; code: string; caption?: string };
 
 marked.setOptions({ gfm: true, breaks: false });
 
@@ -40,6 +41,7 @@ const OPEN = /^:::([a-z-]+)\s*(?:\[([^\]]*)\])?\s*(?:\{([^}]*)\})?\s*$/;
  *   :::exercise[Label]{id="scorecard"}  — mounts a React exercise from the registry
  *   :::figure[Caption]{id="subsystems"} — mounts a hand-drawn SVG diagram
  *   :::qa[Question]                     — collapsible answer, for interview drills
+ *   :::mermaid[Caption]                 — renders a mermaid diagram client-side
  */
 export function toSegments(markdown: string): Segment[] {
   const lines = markdown.split("\n");
@@ -74,6 +76,8 @@ export function toSegments(markdown: string): Segment[] {
         segments.push({ kind: "exercise", id: props.id ?? "scorecard", label, props });
       } else if (type === "figure") {
         segments.push({ kind: "figure", id: props.id ?? "", caption: label, note: props.note });
+      } else if (type === "mermaid") {
+        segments.push({ kind: "mermaid", code: inner, caption: label });
       } else if (type === "qa") {
         segments.push({ kind: "qa", question: label ?? "Question", html: marked.parse(inner) as string });
       } else if (type === "note" || type === "warn") {
