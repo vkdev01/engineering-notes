@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
-import { getCourse } from "@/lib/content";
+import { getCourse, slugify } from "@/lib/content";
 import { contextBlock, retrieve } from "@/lib/retrieval";
-import { slugify } from "@/lib/content";
 import { hasKey, sarvamChat, type ChatMessage } from "@/lib/sarvam";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type Incoming = { messages?: { role: string; content: string }[] };
+type Incoming = { messages?: { role: string; content: string }[]; course?: string };
 
 export async function POST(req: Request) {
   let body: Incoming | null = null;
@@ -26,8 +25,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "bad_request", message: "No question supplied." }, { status: 400 });
   }
 
-  const chunks = retrieve(question, 4);
+  const courseSlug = typeof body?.course === "string" ? body.course : undefined;
+  const course = courseSlug ? getCourse(courseSlug) : undefined;
+
+  const chunks = retrieve(question, 4, course?.slug);
   const sources = chunks.map((c) => ({
+    course: c.course,
+    courseTitle: c.courseTitle,
     section: c.section,
     title: c.sectionTitle,
     heading: c.heading,
@@ -37,19 +41,16 @@ export async function POST(req: Request) {
 
   if (!hasKey()) {
     return NextResponse.json(
-      {
-        error: "missing_key",
-        message: "SARVAM_API_KEY is not configured on the server.",
-        sources,
-      },
+      { error: "missing_key", message: "SARVAM_API_KEY is not configured on the server.", sources },
       { status: 503 },
     );
   }
 
-  const course = getCourse();
   const system = [
-    `You are the teaching assistant for "${course.title}".`,
-    "Answer ONLY from the context below. It is the tutorial the reader is looking at.",
+    course
+      ? `You are the teaching assistant for the "${course.title}" course in a technical reference library.`
+      : "You are the teaching assistant for a technical reference library.",
+    "Answer ONLY from the context below. It is the material the reader is looking at.",
     "Cite the section you used inline, like (§2.2), whenever you state a fact from it.",
     "If the context does not cover the question, say so plainly and name the closest section — never invent content.",
     "Be concise: 2–5 short sentences, plain prose, no headings. Use backticks for code identifiers.",
@@ -66,11 +67,7 @@ export async function POST(req: Request) {
   const result = await sarvamChat(messages);
   if (!result.ok) {
     return NextResponse.json(
-      {
-        error: result.status === 503 ? "missing_key" : "upstream",
-        message: result.message,
-        sources,
-      },
+      { error: result.status === 503 ? "missing_key" : "upstream", message: result.message, sources },
       { status: result.status === 503 ? 503 : 502 },
     );
   }

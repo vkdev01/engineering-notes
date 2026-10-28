@@ -2,7 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 
-type Source = { section: string; title: string; heading: string; slug: string; id: string };
+type Source = {
+  course: string;
+  courseTitle: string;
+  section: string;
+  title: string;
+  heading: string;
+  slug: string;
+  id: string;
+};
 
 type Msg = {
   role: "user" | "assistant";
@@ -67,10 +75,12 @@ export default function ChatPanel({ disabled = false }: { disabled?: boolean }) 
     setBusy(true);
 
     try {
+      const course = window.location.pathname.match(/^\/c\/([^/]+)/)?.[1];
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          course,
           messages: history
             .filter((m) => !m.error)
             .slice(-8)
@@ -161,8 +171,8 @@ export default function ChatPanel({ disabled = false }: { disabled?: boolean }) 
                 <div className="sources">
                   <span className="lbl">from</span>
                   {m.sources.map((s) => (
-                    <a key={s.id} href={`/read/${s.slug}#${s.id}`}>
-                      §{s.section} · {s.heading}
+                    <a key={s.id} href={`/c/${s.course}/${s.slug}#${s.id}`}>
+                      {s.courseTitle} · §{s.section} {s.heading}
                     </a>
                   ))}
                 </div>
