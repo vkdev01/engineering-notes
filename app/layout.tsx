@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import TopBar from "@/components/TopBar";
-import ChatDock from "@/components/ChatDock";
+import ChatPanel from "@/components/ChatPanel";
 import { getCourse, getDocs, exerciseCount } from "@/lib/content";
 
 export function generateMetadata(): Metadata {
@@ -40,7 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           · content lives in <code>content/*.md</code>
           {STATIC_EXPORT ? " · static build: the assistant is visible but disabled here" : ""}
         </footer>
-        <ChatDock disabled={STATIC_EXPORT} />
+        <ChatPanel disabled={STATIC_EXPORT} />
       </body>
     </html>
   );

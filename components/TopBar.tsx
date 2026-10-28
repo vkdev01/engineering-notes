@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ThemePicker from "./ThemePicker";
+import ChatButton from "./ChatButton";
 
 export default function TopBar({
   title,
@@ -19,6 +20,7 @@ export default function TopBar({
         {version ? <span>{version}</span> : null}
         <span className="spacer" />
         <ThemePicker />
+        <ChatButton />
         <Link href="/#contents" className="tag">
           contents
         </Link>
