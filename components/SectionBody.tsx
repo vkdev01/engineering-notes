@@ -1,5 +1,6 @@
 import { toSegments } from "@/lib/markdown";
 import { EXERCISES } from "./exercises/registry";
+import Figure from "./figures/Figures";
 
 export default function SectionBody({ markdown }: { markdown: string }) {
   const segments = toSegments(markdown);
@@ -24,6 +25,32 @@ export default function SectionBody({ markdown }: { markdown: string }) {
               {seg.title ? <b>{seg.title}</b> : null}
               <div dangerouslySetInnerHTML={{ __html: seg.html }} />
             </div>
+          );
+        }
+
+        if (seg.kind === "figure") {
+          return (
+            <figure className="fig" key={i}>
+              <Figure id={seg.id} />
+              {seg.caption ? (
+                <figcaption>
+                  <span>{seg.caption}</span>
+                  {seg.note ? <em>{seg.note}</em> : null}
+                </figcaption>
+              ) : null}
+            </figure>
+          );
+        }
+
+        if (seg.kind === "qa") {
+          return (
+            <details className="qa" key={i}>
+              <summary>
+                <span className="q-mark">Q</span>
+                {seg.question}
+              </summary>
+              <div className="qa-body" dangerouslySetInnerHTML={{ __html: seg.html }} />
+            </details>
           );
         }
 

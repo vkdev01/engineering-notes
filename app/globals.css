@@ -539,6 +539,83 @@ body[data-menu="hidden"] .shell { grid-template-columns: minmax(0, 1fr) !importa
 }
 .pull p { margin: 0; }
 
+/* ---------------- figures ---------------- */
+.fig {
+  margin: 30px 0 34px;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: var(--tint-2, #fafafc);
+  padding: 18px 18px 14px;
+  overflow: hidden;
+}
+.fig-svg { display: block; width: 100%; height: auto; }
+.fig figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+  font-size: 13px;
+  color: var(--dim);
+}
+.fig figcaption span { font-weight: 600; color: var(--ink-2); }
+.fig figcaption em { font-style: normal; color: var(--faint); }
+.fig-missing { font-size: 14px; color: var(--accent); }
+
+/* ---------------- interview drills ---------------- */
+.qa {
+  margin: 14px 0;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--paper);
+  overflow: hidden;
+}
+.qa summary {
+  display: flex;
+  align-items: baseline;
+  gap: 11px;
+  padding: 14px 18px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  list-style: none;
+  line-height: 1.5;
+}
+.qa summary::-webkit-details-marker { display: none; }
+.qa summary::after {
+  content: "+";
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--faint);
+  font-weight: 400;
+}
+.qa[open] summary::after { content: "–"; }
+.qa[open] summary { border-bottom: 1px solid var(--rule); }
+.qa summary:hover { background: var(--tint); }
+.q-mark {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  font-family: var(--sans);
+}
+.qa-body { padding: 4px 18px 16px 51px; font-size: 15.5px; line-height: 1.7; color: var(--ink-2); }
+.qa-body p:first-child { margin-top: 12px; }
+.qa-body p:last-child { margin-bottom: 0; }
+.qa-body ul, .qa-body ol { margin: 10px 0 12px; padding-left: 20px; }
+.qa-body li { margin-bottom: 6px; }
+.qa-body code { font-family: var(--mono); font-size: 0.87em; background: var(--tint); padding: 1px 5px; border-radius: 4px; }
+
 /* ---------------- exercises ---------------- */
 .ex {
   margin: 34px 0 12px;

@@ -4,7 +4,9 @@ import { slugify } from "./content";
 export type Segment =
   | { kind: "html"; html: string }
   | { kind: "callout"; variant: "note" | "warn" | "pull"; title?: string; html: string }
-  | { kind: "exercise"; id: string; label?: string; props: Record<string, string> };
+  | { kind: "exercise"; id: string; label?: string; props: Record<string, string> }
+  | { kind: "figure"; id: string; caption?: string; note?: string }
+  | { kind: "qa"; question: string; html: string };
 
 marked.setOptions({ gfm: true, breaks: false });
 
@@ -36,6 +38,8 @@ const OPEN = /^:::([a-z-]+)\s*(?:\[([^\]]*)\])?\s*(?:\{([^}]*)\})?\s*$/;
  *   :::warn[Title]      — warning callout
  *   :::pull             — pull quote
  *   :::exercise[Label]{id="scorecard"}  — mounts a React exercise from the registry
+ *   :::figure[Caption]{id="subsystems"} — mounts a hand-drawn SVG diagram
+ *   :::qa[Question]                     — collapsible answer, for interview drills
  */
 export function toSegments(markdown: string): Segment[] {
   const lines = markdown.split("\n");
@@ -68,6 +72,10 @@ export function toSegments(markdown: string): Segment[] {
 
       if (type === "exercise") {
         segments.push({ kind: "exercise", id: props.id ?? "scorecard", label, props });
+      } else if (type === "figure") {
+        segments.push({ kind: "figure", id: props.id ?? "", caption: label, note: props.note });
+      } else if (type === "qa") {
+        segments.push({ kind: "qa", question: label ?? "Question", html: marked.parse(inner) as string });
       } else if (type === "note" || type === "warn") {
         segments.push({
           kind: "callout",
