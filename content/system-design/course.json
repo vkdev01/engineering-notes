@@ -1,0 +1,8 @@
+{
+  "order": 3,
+  "title": "System Design",
+  "subtitle": "An exhaustive, worked-through guide to designing large systems: the fundamentals, the building blocks, the failure patterns, and the case studies you get asked about. Converted from the system-design-guide repository.",
+  "version": "Reference 1.0",
+  "credit": "system-design-guide (vkdev01)",
+  "creditUrl": "https://github.com/vkdev01/system-design-guide"
+}
