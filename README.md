@@ -224,6 +224,15 @@ not rendered in this mode and the footer says so.
 The chat still works in the normal build (`npm run build && npm start`), which is what you
 deploy to Vercel or any Node host.
 
+## Replit
+
+The repo carries a `.replit` file, so importing it runs the dev server on `0.0.0.0:3000`
+and the preview works immediately. Add `SARVAM_API_KEY` under Secrets to enable the
+assistant; without it the panel opens and explains that the key is missing.
+
+Note that Replit's *Agent* (the "build me an app" flow) requires an active subscription,
+but importing a public GitHub repo into a workspace does not.
+
 ## Deploying
 
 The chat needs a server, so a static host (GitHub Pages, plain S3) will not work — the

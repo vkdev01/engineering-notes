@@ -1,0 +1,20 @@
+# Replit configuration.
+# Importing this repo gives a working preview without touching any other file:
+# the dev server has to listen on 0.0.0.0 so Replit's proxy can reach it.
+run = "npm run dev -- -H 0.0.0.0 -p 3000"
+entrypoint = "app/page.tsx"
+hidden = [".config", "node_modules", ".next", "out"]
+
+[nix]
+channel = "stable-24_05"
+
+[env]
+NEXT_TELEMETRY_DISABLED = "1"
+
+[[ports]]
+localPort = 3000
+externalPort = 80
+
+[deployment]
+build = ["npm", "run", "build"]
+run = ["npm", "run", "start", "--", "-H", "0.0.0.0", "-p", "3000"]
