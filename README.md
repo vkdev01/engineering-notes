@@ -191,10 +191,17 @@ Without a key the site still runs: the chat panel returns the retrieved passages
 note explaining how to set the key, so you can see the retrieval working before you pay
 for anything.
 
-**In the static (GitHub Pages) build** the assistant button is still rendered, but the panel
-opens with the composer disabled and a note explaining that this build has no server. That
-is deliberate: hiding it made the deployed site look like a different product. The button
-is wired to `disabled={STATIC_EXPORT}` in `app/layout.tsx`.
+**Where it lives.** The trigger sits in the top bar (`ChatButton`), not as a floating bubble.
+Clicking it opens `ChatPanel`, a full-height dock on the right edge: on screens wider than
+1040px the page gives up exactly that width so the article is never covered, and below 900px
+it becomes a full-screen sheet behind a scrim with the body scroll locked. Escape closes it,
+and the two components talk through a single custom event, so the trigger can be moved
+anywhere without touching the panel.
+
+**In the static (GitHub Pages) build** the trigger is still rendered, but the panel opens with
+the composer disabled and a note explaining that this build has no server. That is
+deliberate: hiding it made the deployed site look like a different product. The panel is
+wired to `disabled={STATIC_EXPORT}` in `app/layout.tsx`.
 
 **Tuning**
 
