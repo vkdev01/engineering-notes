@@ -41,3 +41,30 @@ Loops are cheap to start and expensive to observe. Retry storms, context growth 
 :::warn[Warning 9.3.a]
 A loop that cannot be stopped from outside is not automation, it is an outage with a schedule.
 :::
+
+## 9.4 Writing a goal, not a prompt
+
+```text
+# instead of
+"fix the flaky checkout test"
+
+# write
+/goal "checkout e2e suite passes 10 consecutive runs on main"
+      --verify "npm run e2e -- checkout --repeat 10"
+      --stop "report after 3 failed attempts or 45 minutes"
+      --max-iterations 10
+```
+
+Three parts, always: the end state, the check, and the stopping condition. The iteration cap is not bureaucracy — it is what separates *autonomous* from *unsupervised*.
+
+:::qa[What are the three parts of a loop?]
+A goal (the terminal state), a verification (how you know it holds), and a stopping condition (when to give up). A loop missing the second cannot tell success from failure; missing the third, it either quits early or never quits.
+:::
+
+:::qa[How is /goal different from a prompt that says "keep trying until it works"?]
+The verification is a command, not the model's opinion, and the stopping condition is explicit and bounded. That means you can walk away: the loop has an exit that does not depend on anyone watching. "Keep trying" is still a prompt, just an optimistic one.
+:::
+
+:::qa[What are the silent costs of an unattended loop?]
+Four. Retry storms when the failure is environmental. Context growth inside a single loop until quality degrades. Verification that quietly stops running — the loop reports success because nothing checked. And decisions made with no human in the path, which you discover later in the diff.
+:::

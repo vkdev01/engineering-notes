@@ -44,3 +44,38 @@ A row missing the verification is a wish. This is why the list has to live in th
 :::warn[Common error 6.2.a]
 Progress notes like "cart mostly done, payments left" cannot be acted on. What does mostly mean? Which checks passed? The next session has to guess, and guessing is where rework starts.
 :::
+
+## 6.3 The list, as a file
+
+```json
+{
+  "project": "acme-api",
+  "rules": { "single_active_feature": true, "passing_requires_evidence": true },
+  "features": [
+    {
+      "id": "orders-005",
+      "priority": 5,
+      "title": "Cursor pagination on /orders",
+      "user_visible_behavior": "GET /orders?cursor=… returns the next 20 orders; the last page has no next cursor",
+      "status": "in_progress",
+      "verification": ["npm run e2e -- orders.pagination"],
+      "evidence": [],
+      "notes": "keyset on (created_at, id); offset rejected — see progress.md"
+    }
+  ]
+}
+```
+
+Three fields make a row usable: the observable behaviour, the exact check, and the state. A row missing the check is a wish, and the agent will grade it against its own standard — usually "the code looks fine".
+
+:::qa[Why is WIP = 1 the rule rather than a preference?]
+Because attention divides arithmetically. With capacity C and k active tasks, each gets C/k. Below the threshold a task needs to be reasoned about *and* verified, nothing finishes — you get k half-features and no end-to-end check. One item, verified and committed, is the only configuration where "done" means something.
+:::
+
+:::qa[What makes a feature list a harness primitive rather than a to-do list?]
+A to-do list is read by a human. This list is read by the scheduler (to pick work), the verifier (to decide pass/fail) and the handoff writer (to summarise). That is why it must be machine-readable, in the repository, with a verification command per row — it is the shared data structure the whole harness runs on.
+:::
+
+:::qa[How do you stop an agent from doing "a little extra" while it is in there?]
+Give it a boundary it can check: the selected feature's behaviour and its verification command. Anything outside that is a new row in the list, not a detour. If a blocker forces a supporting change, the rule is "narrow and documented", not "while I'm here".
+:::

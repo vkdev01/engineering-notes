@@ -42,3 +42,35 @@ Agents praise their own output. The structural fix is to give the checker its ow
 :::warn[Warning 7.3.a]
 If your definition of done stops at "tests are green", you have automated exactly the gap the agent is worst at.
 :::
+
+## 7.4 The gates, drawn
+
+:::figure[Three gates, three classes of defect]{id="layers" note="stop at gate two and you automate the gap"}
+:::
+
+## 7.5 One command that runs all three
+
+```json
+{
+  "scripts": {
+    "lint":  "eslint . --max-warnings 0 && tsc --noEmit",
+    "test":  "vitest run",
+    "e2e":   "playwright test --reporter=line",
+    "check": "npm run lint && npm run test && npm run e2e"
+  }
+}
+```
+
+`npm run check` is the definition of done in executable form. If it is not one command, it is not a definition — it is three things someone has to remember, and the agent will remember two.
+
+:::qa[A unit suite is green. Why is that not evidence the feature works?]
+Because unit tests isolate by design: mock the dependency, test the unit. Every module passes while the wiring is broken. Interface mismatches, stale caches across a migration, unreleased file handles, and environment-specific config all live in the seams that mocks remove.
+:::
+
+:::qa[What is the three-layer termination check?]
+Lint and types (is it well formed), the unit suite (do the units behave), then a full user flow (does the system work). All three must pass before a feature can be marked done. Each layer catches a class of defect the others structurally cannot see.
+:::
+
+:::qa[How do you stop an agent from declaring victory early?]
+Take "done" away from it. Replace the agent's judgement with an external command whose output is recorded. Then separate the worker from the checker: give the checker its own rubric and make "looks good" an invalid verdict, because agents reliably praise their own output.
+:::

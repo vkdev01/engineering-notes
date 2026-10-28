@@ -47,3 +47,34 @@ Attribute every failure to a layer before changing anything: was the task unclea
 :::warn[Warning 1.3.a]
 "Try a bigger model" is the most expensive debugging strategy available, and it usually hides the layer that is actually broken. Swap models only after the harness has been ruled out.
 :::
+
+## 1.4 The same ticket, written two ways
+
+The cheapest harness improvement is not a tool. It is the sentence you did not write.
+
+```text
+# what the agent received
+add search to the products page
+
+# what it needed
+add product search to /products
+- full-text over name + description, case-insensitive
+- results paginated at 20, newest first
+- empty query returns the full list
+- must not break the existing sort dropdown
+- verification: `npm run test:e2e -- search` passes
+```
+
+The second version is 40 seconds of writing and removes most of the guesswork. Every failure mode below is downstream of a sentence like the first one.
+
+:::qa[Why does a model that scores 77% on SWE-bench still fail on my repository?]
+Because the benchmark supplies what your repository does not: a clean issue description, an existing test suite, and a working environment. Those three things are the harness. A benchmark measures the model inside a good harness; your repo measures it inside whatever harness you happen to have.
+:::
+
+:::qa[An agent produced a broken pull request. What is the first question you ask?]
+Not "which model", but "which layer failed". Was the task ambiguous, was the convention unstated, could the agent run the tests, did it know the current state? Nine times out of ten the answer is a missing artefact rather than a missing capability, and the fix is a file, not a subscription upgrade.
+:::
+
+:::qa[How would you explain the difference between a capability gap and a harness-induced failure?]
+A capability gap is something the model genuinely cannot do. A harness-induced failure is something it can do, but could not do *here* — because it never saw the rule, could not run the check, or had no record of what the last session decided. The diagnostic value is that the second is fixable today, and the first usually is not.
+:::

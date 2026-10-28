@@ -39,3 +39,32 @@ Every session ends with a state the next one can trust. That is cheap to define 
 :::warn[Warning 3.2.a]
 A session that ends red is not finished — it is a debt the next session pays first, with interest. Fix the build before you leave, or write down that you did not.
 :::
+
+## 3.3 What the map looks like
+
+```text
+repo/
+  AGENTS.md                  the invariants, the startup workflow, done criteria
+  ARCHITECTURE.md            how the system is put together
+  init.sh                    one command that makes the environment trustworthy
+  feature_list.json          what is done, verified, blocked
+  progress.md                what happened last session, what is next
+  docs/
+    api.md                   conventions that only matter when touching the API
+    database.md              migrations, naming, the two rules that always bite
+  src/api/ARCHITECTURE.md    the map for the module you are about to change
+```
+
+Two properties matter more than completeness: **proximity** (the rule sits where it is needed) and **authority** (there is one place to look, not three that disagree).
+
+:::qa[What is the fresh-session test, and what does it measure?]
+Open a new session with nothing but the repository and ask five questions: what is this system, how is it organised, how do I run it, how do I verify it, where are we now. It measures the repository's self-sufficiency. Any question the agent cannot answer becomes exploration time at the start of every session, forever.
+:::
+
+:::qa[Our team is small and the knowledge is in our heads. Why is that a problem?]
+It is only a problem for the agent, which cannot ask. Humans compensate for undocumented knowledge by interrupting each other; an agent compensates by guessing, and a wrong guess costs more than the documentation would have. You do not need a documentation project — you need the five answers written down once.
+:::
+
+:::qa[Where should a hard constraint live: the root AGENTS.md or a module doc?]
+Where it will be read. If it applies to every change (never commit secrets, never use `eval`), the root file. If it applies when you touch a subsystem (all queries parameterised, all endpoints behind OAuth), the module doc next to that code — and a one-line pointer in the root file so the agent knows to open it.
+:::

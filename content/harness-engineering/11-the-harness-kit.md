@@ -45,3 +45,54 @@ When a session goes wrong, do not reach for a bigger model. Name the layer: inst
 :::pull
 The model is not the variable you control. The harness is.
 :::
+
+## 11.4 The kit, as files you can copy
+
+```markdown
+# AGENTS.md — the entry file
+## Startup
+1. `pwd` · read `progress.md` · read `feature_list.json`
+2. `./init.sh` — if the baseline is red, fix that first
+3. `npm run e2e` before new work
+
+## Invariants
+- no secrets in the repo · all SQL via the query builder · every route behind requireAuth()
+
+## Read on demand
+API → `docs/api.md` · DB → `docs/database.md` · UI → `docs/ui.md`
+
+## Done means
+lint · unit · e2e · evidence recorded · cold clone starts
+```
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")"
+npm ci
+npm run lint
+npm run test --silent
+npm run e2e --silent
+echo "environment ready"
+```
+
+```json
+{ "features": [ {
+    "id": "feat-001", "priority": 1,
+    "user_visible_behavior": "A user can sign in and see their dashboard",
+    "verification": ["npm run e2e -- auth.signin"],
+    "status": "not_started", "evidence": []
+} ] }
+```
+
+:::qa[If you could ship only one file this week, which?]
+`init.sh`. An unreliable environment produces unverifiable work no matter how good the instruction file is, and it is the cheapest of the four to write — one script that installs, lints and tests.
+:::
+
+:::qa[What is the smallest useful definition of done?]
+One command that exits non-zero when the feature is not done, whose output is recorded. In most repositories that is `lint && test && e2e`, plus a line in the feature list with the command and its result.
+:::
+
+:::qa[How do you know the harness is working?]
+Sessions get shorter, retries get aimed, "it said done and it wasn't" stops appearing, and the model tier you need for a given task goes down rather than up. The last one is the strongest signal: the environment is doing the work instead of the model.
+:::

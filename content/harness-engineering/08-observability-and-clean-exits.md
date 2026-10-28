@@ -45,3 +45,30 @@ Technical debt is a high-interest loan. Paying it in small increments is almost 
 
 :::exercise[Exercise 08.1 · Grade your last session's exit]{id="checklist" items="The build passed when the session ended;All tests passed, including pre-existing ones;Verification ran in CI, not just locally;Feature state and progress were written down;Temp files and debug output were removed;A cold clone still starts via the standard path" grades="A,B,C,D,F"}
 :::
+
+## 8.4 What an observable run looks like
+
+```text
+[12:04:31] task      feat-005 start          actor=agent model=…
+[12:04:33] tool      read  src/orders/repo.ts  ok 41ms
+[12:04:52] tool      exec  npm run e2e -- orders.pagination
+[12:05:04] result    FAIL 3/3  cursor_encode_missing
+[12:05:05] decision  retry with encoder in src/orders/cursor.ts
+[12:07:41] result    PASS 3/3
+[12:07:42] evidence  recorded → feature_list.json#orders-005
+[12:07:43] handoff   progress.md updated, commit 8f21ac
+```
+
+The value is not the logging; it is that every line is a decision with a cause attached. A reviewer can see why the retry happened, and the next session can see why the code looks the way it does.
+
+:::qa[What does runtime observability buy that code review cannot?]
+Code review shows what was written; traces show what actually ran. A function can read perfectly and still take a different path under a boundary input. Review also cannot tell you which retries were blind, which is the information you need to stop them.
+:::
+
+:::qa[Define clean state.]
+Six checkable things: the build passes, the whole suite passes including pre-existing tests, verification ran in CI, feature state and progress are written down with evidence, temp files and debug output are gone, and a cold clone still starts via the standard path. "It compiles" is one of six.
+:::
+
+:::qa[Why does quality drift in a repo that agents work in?]
+Because agents copy the patterns already present, including the bad ones, and nobody pays the debt down. Lehman's laws say a changing system grows more complex unless actively managed. The counter is encoded golden rules, periodic cleanup tasks, and promoting a rule from documentation into tooling once it has been broken twice.
+:::

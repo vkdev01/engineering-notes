@@ -54,3 +54,42 @@ Treating the instruction file as the whole harness has a predictable signature: 
 :::
 
 The point of the exercise is arithmetic, not taste. A 600-line instruction file is roughly 10–20k tokens, which is the range where rules start crowding out code reading and reasoning.
+
+## 2.5 The whole thing on one page
+
+:::figure[The five subsystems, and where the model sits]{id="subsystems" note="one artefact inside box one is not the harness"}
+:::
+
+The practical test for whether you have a harness or a prompt: can you name, for each of the five boxes, a file in your repository that does that job? If environment has no `init.sh`, if state has no feature list, if feedback has no command — those are the boxes to work on, in that order of cheapness.
+
+```markdown
+# the smallest AGENTS.md that is still a harness (about 40 lines)
+
+## Startup
+1. Read progress.md — last verified state and next step.
+2. Read feature_list.json — pick the highest-priority not_started item.
+3. Run ./init.sh. If the baseline is red, fix that before anything else.
+
+## Rules
+- One feature at a time. WIP = 1.
+- Do not mark a feature done because code was added.
+- Never change the verification rules mid-task.
+
+## Definition of done
+- behaviour implemented
+- `npm run lint && npm run test && npm run e2e` pass
+- evidence recorded in feature_list.json
+- repo still starts from a cold clone
+```
+
+:::qa[Is a good system prompt a harness?]
+No. It is one artefact inside the instructions subsystem, which is one of five. A prompt can tell the agent what you want; it cannot give it a working environment, a record of what was already done, or a command that proves the work is correct. Those are the other four boxes, and they carry most of the reliability.
+:::
+
+:::qa[How do you decide which subsystem to improve first?]
+Remove one at a time and re-run an identical task. The removal that hurts most is the one to invest in. When you cannot run that experiment, fix in order of cheapness and blast radius: environment first (one script), then state (two files), then feedback (a command), then instructions, then tools.
+:::
+
+:::qa[What does "the repo is the spec" mean in practice?]
+That anything the agent needs to know must live in the repository, because the repository is the only thing it can read. A decision in Slack, a convention in someone's head, a runbook in Confluence — all of it is invisible. "In practice" means: if a rule matters, there is a file that states it, close to the code it constrains.
+:::

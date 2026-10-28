@@ -42,3 +42,20 @@ The widely quoted "+18% accuracy, −85% cost" figures come from a paper about c
 :::pull
 Once an agent needs specialisation, parallelism, shared state, verification and recovery at the same time, it has stopped being a loop. Until then, the loop is cheaper.
 :::
+
+## 10.3 The two shapes, side by side
+
+:::figure[When a loop has to become a graph]{id="loopgraph" note="add a node only when the loop provably cannot express the step"}
+:::
+
+:::qa[When does a loop have to become a graph?]
+When you need specialisation, parallelism, shared state, verification and recovery *at the same time*. Each alone is expressible in a loop; together they are a routing problem. Until then the loop is cheaper, and a single node is the cheapest thing you can debug.
+:::
+
+:::qa[What does a separate checker node buy over an in-loop check?]
+The thing doing the work is no longer the thing judging it. Agents reliably praise their own output; a checker with its own rubric and its own evidence requirement does not. It also gives you a rejection path that is explicit rather than an implicit retry.
+:::
+
+:::qa[What is the orchestration tax?]
+The cost of the edges, not the nodes. Four nodes and three edges means two failure paths to reason about, a shared-state contract to define, and a rollback path that has to be tested. It is worth paying only when recovery is genuinely required — otherwise you have bought debugging surface you did not need.
+:::
