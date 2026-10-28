@@ -38,9 +38,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </>
           ) : null}{" "}
           · content lives in <code>content/*.md</code>
-          {STATIC_EXPORT ? " · static build: the docs chat runs only on a server deployment" : ""}
+          {STATIC_EXPORT ? " · static build: the assistant is visible but disabled here" : ""}
         </footer>
-        {STATIC_EXPORT ? null : <ChatDock />}
+        <ChatDock disabled={STATIC_EXPORT} />
       </body>
     </html>
   );

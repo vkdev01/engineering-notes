@@ -19,10 +19,7 @@ const SUGGESTIONS = [
 
 /** Escape first, then apply a tiny subset of markdown. Keeps model output inert. */
 function render(text: string): string {
-  const escaped = text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   return escaped
     .replace(/`([^`]+)`/g, "<code>$1</code>")
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
@@ -31,7 +28,7 @@ function render(text: string): string {
     .join("");
 }
 
-export default function ChatDock() {
+export default function ChatDock({ disabled = false }: { disabled?: boolean }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -44,7 +41,7 @@ export default function ChatDock() {
 
   async function ask(question: string) {
     const q = question.trim();
-    if (!q || busy) return;
+    if (!q || busy || disabled) return;
     const history = [...messages, { role: "user" as const, content: q }];
     setMessages(history);
     setInput("");
@@ -88,10 +85,7 @@ export default function ChatDock() {
         ]);
       }
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "", error: "Could not reach the server." },
-      ]);
+      setMessages((prev) => [...prev, { role: "assistant", content: "", error: "Could not reach the server." }]);
     } finally {
       setBusy(false);
     }
@@ -99,7 +93,12 @@ export default function ChatDock() {
 
   if (!open) {
     return (
-      <button type="button" className="chat-fab" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className="chat-fab"
+        onClick={() => setOpen(true)}
+        title={disabled ? "The assistant needs the server build" : "Ask the docs"}
+      >
         <span className="dot" />
         Ask the docs
       </button>
@@ -111,13 +110,24 @@ export default function ChatDock() {
       <div className="chat-head">
         <span>Ask the docs</span>
         <span className="spacer" />
-        <button type="button" onClick={() => setMessages([])} title="Clear conversation">
-          clear
-        </button>
+        {!disabled && (
+          <button type="button" onClick={() => setMessages([])} title="Clear conversation">
+            clear
+          </button>
+        )}
         <button type="button" onClick={() => setOpen(false)} title="Close" aria-label="Close">
           ✕
         </button>
       </div>
+
+      {disabled ? (
+        <div className="chat-off">
+          <b>Not available in this build</b>
+          This is the static export, so there is no server to run the assistant. The same
+          page served from <code>npm run start</code> answers from the tutorial content using
+          the Sarvam API.
+        </div>
+      ) : null}
 
       <div className="chat-log" ref={logRef}>
         {messages.length === 0 ? (
@@ -125,8 +135,8 @@ export default function ChatDock() {
             <div className="who">assistant</div>
             <div className="body">
               <p>
-                Answers come only from this tutorial’s content, with links to the sections they were drawn from. Ask
-                about anything on the page.
+                Answers come only from this tutorial’s content, with links to the sections they
+                were drawn from. Ask about anything on the page.
               </p>
             </div>
           </div>
@@ -163,14 +173,14 @@ export default function ChatDock() {
       {messages.length === 0 ? (
         <div className="chat-sugg">
           {SUGGESTIONS.map((s) => (
-            <button type="button" key={s} onClick={() => ask(s)}>
+            <button type="button" key={s} onClick={() => ask(s)} disabled={disabled}>
               {s}
             </button>
           ))}
         </div>
       ) : null}
 
-      <div className="chat-note">grounded in this site · sarvam-105b</div>
+      <div className="chat-note">{disabled ? "static build · assistant disabled" : "grounded in this site · sarvam-105b"}</div>
 
       <form
         className="chat-form"
@@ -182,11 +192,11 @@ export default function ChatDock() {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about the material…"
+          placeholder={disabled ? "Needs the server build" : "Ask about the material…"}
           aria-label="Your question"
-          disabled={busy}
+          disabled={busy || disabled}
         />
-        <button type="submit" disabled={busy || !input.trim()}>
+        <button type="submit" disabled={busy || disabled || !input.trim()}>
           Ask
         </button>
       </form>
