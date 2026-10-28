@@ -5,6 +5,10 @@ kicker: "Diagnosis"
 abstract: "Benchmark scores measure a clean task with a supplied environment. Your repository supplies neither, so the same model behaves differently. This section names the gap and the five ways sessions break."
 time: "8 min"
 order: 1
+outcomes:
+  - "Name the capability gap between a benchmark and your own repository"
+  - "Recognise the five ways an agent session actually fails"
+  - "Attribute a failure to a harness layer instead of the model"
 ---
 
 Strong models do not imply reliable execution. Claude Sonnet 4.5 scored 77.2% on SWE-bench Verified, and then the same model hands you a broken feature in your own repository — vague ticket, no tests, conventions that live in a Slack thread.

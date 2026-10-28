@@ -5,6 +5,10 @@ kicker: "Feedback"
 abstract: "Code review shows what was written; traces show what actually ran. Plus what clean state means, and why drift compounds when nobody pays it down."
 time: "11 min"
 order: 8
+outcomes:
+  - "Say what runtime observability buys that code review cannot"
+  - "Define clean state as six checkable conditions"
+  - "Explain how drift compounds and how to pay it down"
 ---
 
 Ask why two tests are failing and a harness without observability answers "not sure, might be a timing thing". Every decision after that is a guess.

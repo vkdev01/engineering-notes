@@ -13,6 +13,7 @@ export type Doc = {
   status?: string;
   time?: string;
   order: number;
+  outcomes?: string[];
   body: string;
   headings: Heading[];
 };
@@ -81,6 +82,7 @@ export function getDocs(): Doc[] {
         status: data.status ? String(data.status) : undefined,
         time: data.time ? String(data.time) : undefined,
         order: Number(data.order ?? 0),
+        outcomes: Array.isArray(data.outcomes) ? data.outcomes.map(String) : undefined,
         body: content,
         headings: extractHeadings(content),
       } satisfies Doc;

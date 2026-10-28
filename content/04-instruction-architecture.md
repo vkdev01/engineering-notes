@@ -5,6 +5,10 @@ kicker: "Instructions"
 abstract: "Why a 600-line AGENTS.md makes an agent worse, and where to put the rule that actually matters."
 time: "14 min"
 order: 4
+outcomes:
+  - "Explain why a 600-line instruction file makes an agent worse"
+  - "Split a monolithic file into an entry point plus topic docs"
+  - "Place a hard constraint where it will actually be read"
 ---
 
 It started at 40 lines. Every mistake added a rule. Three months later a simple bug fix means reading deployment notes, six style opinions and a lesson from a WebSocket leak — and the security rule on line 300 gets ignored.

@@ -5,6 +5,10 @@ kicker: "Automation"
 abstract: "Everything so far assumed you were at the keyboard. A loop has exactly three parts: a goal, a way to verify it, and a stopping condition."
 time: "12 min"
 order: 9
+outcomes:
+  - "State the three parts every loop must have"
+  - "Convert a prompt into a terminal-state goal with a stopping condition"
+  - "Name the four silent costs of an unattended loop"
 ---
 
 In early 2026 Claude Code and Codex independently shipped `/goal`. You type a terminal state, close the laptop, and the agent analyses, codes, tests, fixes and retries until the condition holds.

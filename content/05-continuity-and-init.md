@@ -5,6 +5,10 @@ kicker: "State"
 abstract: "Sessions end; understanding does not have to. Why long tasks lose the thread, what a written handoff contains, and why initialisation deserves its own phase."
 time: "12 min"
 order: 5
+outcomes:
+  - "Explain why a larger context window does not solve continuity"
+  - "List the five artefacts a written handoff needs"
+  - "Separate initialisation from implementation inside a session"
 ---
 
 The agent runs thirty minutes, gets most of a feature done, and runs out of context. The next session remembers none of it: not the decisions, not which files changed, not what the tests said.

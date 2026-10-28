@@ -5,6 +5,10 @@ kicker: "Scope"
 abstract: "One feature at a time, or nothing finishes. Attention as arithmetic, and the three fields a feature row needs before it can be verified."
 time: "15 min"
 order: 6
+outcomes:
+  - "Compute the attention budget for k tasks in flight"
+  - "Write a feature row with behaviour, verification and state"
+  - "Explain why the list must be machine-readable state in the repo"
 ---
 
 Ask for "user authentication" and you get a schema change, routes, a mail service, bcrypt, a refactored error middleware and a reorganised test directory. Twelve files, eight hundred lines, nothing working end to end.

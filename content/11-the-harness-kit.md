@@ -5,6 +5,10 @@ kicker: "Output"
 abstract: "Four files in the root of any repository: the instruction entry point, the feature list, the startup script and the progress log. Everything above converges here."
 time: "8 min"
 order: 11
+outcomes:
+  - "Name the four files that make a minimum viable harness"
+  - "Write a definition of done that a command can check"
+  - "Diagnose a failing session by layer, in one pass"
 ---
 
 Ten sections of diagnosis reduce to four files you can copy. They are the minimum viable harness for any project, in any language.

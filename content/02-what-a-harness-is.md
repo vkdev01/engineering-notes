@@ -5,6 +5,10 @@ kicker: "Definition"
 abstract: "A harness is the engineering infrastructure outside the model weights. It has five subsystems. The prompt is one artefact inside the first of them, and treating it as the whole thing is the most common reason sessions fail."
 time: "10 min"
 order: 2
+outcomes:
+  - "Define the five subsystems of a harness and what each carries"
+  - "Explain why the weakest subsystem sets your reliability ceiling"
+  - "Score a real repository from 0 to 4 on each subsystem"
 ---
 
 People say "harness" and mean "the system prompt I wrote." That is one of five subsystems. The other four are where most reliability actually comes from.

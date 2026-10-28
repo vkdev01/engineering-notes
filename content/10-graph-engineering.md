@@ -5,6 +5,10 @@ kicker: "Automation"
 abstract: "A loop is a graph with one node. When a task needs specialisation, parallelism, shared state, verification and recovery at once, it has stopped being a loop."
 time: "10 min"
 order: 10
+outcomes:
+  - "Place prompt, context, loop and graph on one stack"
+  - "Decide when a loop has to become a graph, and when it must not"
+  - "Recognise unverified performance claims about orchestration"
 ---
 
 The term arrived in July 2026 through a joke between two engineers that the timeline took seriously. The idea is real; most of the numbers around it are not.

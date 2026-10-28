@@ -5,6 +5,10 @@ kicker: "Feedback"
 abstract: "Done is a claim; evidence is a fact. The blind spots of unit tests, the three-layer termination check, and why end-to-end verification changes how the agent writes code."
 time: "13 min"
 order: 7
+outcomes:
+  - "Name four defect classes a green unit suite cannot see"
+  - "Run the three-layer termination check on a feature"
+  - "Separate the agent doing the work from the agent judging it"
 ---
 
 Modern neural networks are systematically overconfident — reported confidence runs above actual accuracy, as Guo et al. showed in 2017. An agent that feels finished is reporting a feeling.

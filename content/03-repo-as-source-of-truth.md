@@ -5,6 +5,10 @@ kicker: "Instructions"
 abstract: "An agent has three inputs: the task, the contents of the repository, and the output of commands it runs. Slack, Jira and the decision you made on Friday are invisible to it."
 time: "9 min"
 order: 3
+outcomes:
+  - "Run the fresh-session test on your own repository"
+  - "Decide which decisions belong in the repo, and where they go"
+  - "Write a handoff the next session can act on without asking"
 ---
 
 This is not a "write more documentation" problem. It is a "put the decision where it will be needed" problem. A 50-line `ARCHITECTURE.md` inside `src/api/` beats a 500-page wiki nobody maintains, because information only helps at the moment it is in front of the reader.
