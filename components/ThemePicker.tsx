@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 export const THEMES = [
+  { id: "atlas", label: "Atlas", swatch: "#6d28d9" },
   { id: "oxblood", label: "Oxblood", swatch: "#8c2f39" },
   { id: "ink", label: "Ink", swatch: "#24405c" },
   { id: "moss", label: "Moss", swatch: "#3f6212" },
@@ -14,7 +15,7 @@ export const THEMES = [
 export const STORAGE_KEY = "tutorial-theme";
 
 export default function ThemePicker() {
-  const [theme, setTheme] = useState<string>("oxblood");
+  const [theme, setTheme] = useState<string>("atlas");
 
   useEffect(() => {
     const saved = window.localStorage.getItem(STORAGE_KEY);

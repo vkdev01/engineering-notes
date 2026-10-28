@@ -21,7 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const docs = getDocs();
 
   return (
-    <html lang="en" data-theme="oxblood" suppressHydrationWarning>
+    <html lang="en" data-theme="atlas" suppressHydrationWarning>
       <body>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <TopBar title={course.title} version={course.version} exerciseCount={exerciseCount()} />
