@@ -294,14 +294,14 @@ wired to `disabled={STATIC_EXPORT}` in `app/layout.tsx`.
 ## GitHub Pages (static build)
 
 The repo ships a workflow (`.github/workflows/pages.yml`) that builds a static export and
-publishes it to Pages at `https://<user>.github.io/spec-tutorial-template/`.
+publishes it to Pages at `https://<user>.github.io/engineering-notes/`.
 
 ```bash
 GITHUB_PAGES=1 NEXT_PUBLIC_STATIC_EXPORT=1 npm run build   # → out/
 ```
 
 In Pages mode `next.config.mjs` sets `output: "export"`, `trailingSlash` and a `basePath`
-of `/spec-tutorial-template`, so links and `_next` assets resolve under the project path.
+of `/engineering-notes`, so links and `_next` assets resolve under the project path.
 The workflow moves `app/api` out of the way before exporting, because a route handler
 cannot be exported — the Pages site is the tutorial **without** the chat. `ChatDock` is
 not rendered in this mode and the footer says so.

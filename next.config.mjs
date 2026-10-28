@@ -9,7 +9,7 @@
  * see .github/workflows/pages.yml.
  */
 const isPages = process.env.GITHUB_PAGES === "1";
-const repoName = "spec-tutorial-template";
+const repoName = "engineering-notes";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
