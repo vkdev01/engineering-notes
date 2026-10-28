@@ -3,7 +3,7 @@ section: "10"
 title: "Graph engineering"
 kicker: "Automation"
 abstract: "A loop is a graph with one node. When a task needs specialisation, parallelism, shared state, verification and recovery at once, it has stopped being a loop."
-time: "10 min"
+time: "14 min"
 order: 10
 outcomes:
   - "Place prompt, context, loop and graph on one stack"
@@ -58,4 +58,53 @@ The thing doing the work is no longer the thing judging it. Agents reliably prai
 
 :::qa[What is the orchestration tax?]
 The cost of the edges, not the nodes. Four nodes and three edges means two failure paths to reason about, a shared-state contract to define, and a rollback path that has to be tested. It is worth paying only when recovery is genuinely required — otherwise you have bought debugging surface you did not need.
+:::
+
+## 10.4 A minimal graph, in about forty lines
+
+If you need one, keep it small and explicit. The orchestration is the easy part; the state contract is what bites.
+
+```ts
+type State = { goal: string; artifacts: Record<string, string>; attempts: number; verdict?: string };
+
+const nodes = {
+  plan:    async (s: State) => ({ ...s, artifacts: { ...s.artifacts, plan: await plan(s.goal) } }),
+  build:   async (s: State) => ({ ...s, artifacts: { ...s.artifacts, diff: await build(s.artifacts.plan) } }),
+  check:   async (s: State) => ({ ...s, verdict: await review(s.artifacts.diff) }),
+};
+
+async function run(goal: string): Promise<State> {
+  let s: State = { goal, artifacts: {}, attempts: 0 };
+  s = await nodes.plan(s);
+  while (s.attempts < 3) {
+    s = await nodes.build(s);
+    s = await nodes.check(s);
+    if (s.verdict === "PASS") return s;           // accepted
+    s = { ...s, attempts: s.attempts + 1 };        // rejection edge
+  }
+  return { ...s, verdict: "BLOCKED" };            // rollback / human gate
+}
+```
+
+Three things to notice: the loop is still there (a graph is loops plus routing), the rejection edge is explicit, and the cap produces a *third* outcome — blocked — which is what a human gate attaches to.
+
+## 10.5 When not to build one
+
+| Situation | Do this instead |
+| --- | --- |
+| One goal, one check | a goal loop |
+| Sequential steps that never branch | a script |
+| Two roles (do / check) | maker-checker loop |
+| Parallel work with no shared state | two loops, two worktrees |
+| Shared state but no recovery needed | one loop, a bigger plan |
+| You cannot draw the graph on a whiteboard | you do not need the graph |
+
+The last row is the honest test. If the nodes and edges do not fit on one whiteboard, the failure is not going to be in the parts you drew — it will be in the parts you did not.
+
+:::qa[What breaks first in a graph that works on paper?]
+Shared state. Two nodes write to the same artefact, the second one wins, and the first one's assumptions are silently invalidated. The fix is either immutable artefacts per node or an explicit merge node — and a contract for what each node may read and write.
+:::
+
+:::qa[How do you test a graph before running it?]
+Run each node in isolation against a fixture state, then the two-edge paths, then the rejection path. The rejection path is the one teams skip, and it is the one that runs in production at 2am.
 :::

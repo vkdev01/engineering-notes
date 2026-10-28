@@ -3,7 +3,7 @@ section: "7"
 title: "Verification"
 kicker: "Feedback"
 abstract: "Done is a claim; evidence is a fact. The blind spots of unit tests, the three-layer termination check, and why end-to-end verification changes how the agent writes code."
-time: "13 min"
+time: "19 min"
 order: 7
 outcomes:
   - "Name four defect classes a green unit suite cannot see"
@@ -73,4 +73,66 @@ Lint and types (is it well formed), the unit suite (do the units behave), then a
 
 :::qa[How do you stop an agent from declaring victory early?]
 Take "done" away from it. Replace the agent's judgement with an external command whose output is recorded. Then separate the worker from the checker: give the checker its own rubric and make "looks good" an invalid verdict, because agents reliably praise their own output.
+:::
+
+## 7.6 An end-to-end test the agent cannot fake
+
+The point of an e2e test is that it exercises the real path. If it mocks the seam, it inherits the unit suite's blind spot.
+
+```ts
+// tests/e2e/orders.pagination.spec.ts
+import { test, expect } from "@playwright/test";
+
+test("second page continues where the first ended", async ({ page }) => {
+  await page.goto("/login");
+  await page.fill("#email", process.env.E2E_USER!);
+  await page.fill("#password", process.env.E2E_PASS!);
+  await page.click("button[type=submit]");
+
+  await page.goto("/orders");
+  const first = await page.locator("[data-testid=order-id]").allInnerTexts();
+  expect(first).toHaveLength(20);
+
+  await page.click("[data-testid=next-page]");
+  const second = await page.locator("[data-testid=order-id]").allInnerTexts();
+  expect(second).toHaveLength(20);
+  expect(second[0]).not.toBe(first[0]);        // no overlap
+  expect(new Set([...first, ...second]).size).toBe(40);
+});
+```
+
+Three properties make it hard to game: it signs in for real, it asserts *no overlap* rather than merely "returns data", and it runs against the real database rather than a fixture. An agent can make a unit test pass by adjusting the mock; it cannot make this pass without the cursor working.
+
+## 7.7 The checker's rubric
+
+When you split the worker from the checker, the checker needs a standard of its own — otherwise it inherits the worker's optimism.
+
+```text
+You are reviewing a completed feature. Do not fix anything; produce a verdict.
+
+Inputs: the feature row, the diff, the recorded verification output.
+For each dimension, give a verdict and cite evidence:
+
+1. BEHAVIOUR   — does the diff implement the stated user-visible behaviour?
+2. SCOPE       — does it change anything outside that behaviour?
+3. VERIFICATION— does the recorded output actually prove it, or merely accompany it?
+4. REGRESSION  — do pre-existing tests still pass, unmodified?
+5. CLEANLINESS — debug output, dead code, commented-out blocks, stray files?
+
+Verdict: PASS only if 1–5 all pass with evidence.
+"Looks good" is not a verdict. Quote the command output or the line of code.
+```
+
+| Weak verdict | Strong verdict |
+| --- | --- |
+| "Looks correct" | "Behaviour met: POST /orders returns 201 (e2e log line 14)" |
+| "Tests pass" | "3 e2e passed; note that `orders.pagination` was modified in this diff — flag" |
+| "No issues" | "No changes outside `src/orders/**`; no debug prints found" |
+
+:::qa[Why does the checker need a different model call rather than the same one reviewing itself?]
+Because self-review shares the same context and the same reasoning that produced the work — including its mistaken assumptions. A separate call with a rubric and only the artefacts sees the diff as an artefact, not as a memory, which is exactly the outside view you want.
+:::
+
+:::qa[What is the single strongest anti-gaming rule?]
+A verification file may not be modified in the same feature that depends on it. Without that rule, the cheapest way to make a failing test pass is to change the test, and an agent optimising for a green check will eventually find it.
 :::

@@ -3,7 +3,7 @@ section: "8"
 title: "Observability and clean exits"
 kicker: "Feedback"
 abstract: "Code review shows what was written; traces show what actually ran. Plus what clean state means, and why drift compounds when nobody pays it down."
-time: "11 min"
+time: "16 min"
 order: 8
 outcomes:
   - "Say what runtime observability buys that code review cannot"
@@ -71,4 +71,61 @@ Six checkable things: the build passes, the whole suite passes including pre-exi
 
 :::qa[Why does quality drift in a repo that agents work in?]
 Because agents copy the patterns already present, including the bad ones, and nobody pays the debt down. Lehman's laws say a changing system grows more complex unless actively managed. The counter is encoded golden rules, periodic cleanup tasks, and promoting a rule from documentation into tooling once it has been broken twice.
+:::
+
+## 8.5 A trace you can grep
+
+You do not need an observability platform. One line per decision, in a file, is enough to answer "why did it do that".
+
+```text
+2026-03-04T12:04:31Z task     feat-005 start
+2026-03-04T12:04:33Z read     src/orders/repo.ts           ok  41ms
+2026-03-04T12:04:52Z exec     npm run e2e -- orders.pagination
+2026-03-04T12:05:04Z result   FAIL 3/3  cursor_encode_missing
+2026-03-04T12:05:05Z decide   retry: implement encoder in src/orders/cursor.ts
+2026-03-04T12:07:41Z result   PASS 3/3
+2026-03-04T12:07:42Z evidence recorded -> feature_list.json#orders-005
+```
+
+The `decide` lines are the valuable ones: they are the agent's reasoning, written down at the moment it happened. Two queries cover most incident reviews:
+
+```bash
+# every retry and why
+grep ' decide ' trace.log | grep -i retry
+
+# every failing command, in order
+grep ' result  ' trace.log | grep FAIL
+```
+
+## 8.6 The exit script
+
+Clean state is six checks, and six checks that live in someone's memory are three checks. Put them in a script that runs before the session closes.
+
+```bash
+#!/usr/bin/env bash
+# exit-check.sh — run before ending a session
+set -uo pipefail
+fail=0
+run() { printf '%-24s' "$1"; shift; if "$@" >/tmp/out 2>&1; then echo "ok"; else echo "FAIL"; fail=1; cat /tmp/out; fi; }
+
+run "build"        npm run build
+run "lint"         npm run lint
+run "tests"        npm run test --silent
+run "e2e"          npm run e2e --silent
+run "no debug"     bash -c '! grep -rn "console.log\|debugger" src/ | grep -v test'
+run "cold clone"   bash -c 'rm -rf .tmp && git worktree add .tmp HEAD -q && (cd .tmp && ./init.sh) && git worktree remove .tmp'
+
+[ $fail -eq 0 ] && echo "clean — safe to hand off" || echo "NOT CLEAN — fix before exit"
+exit $fail
+```
+
+:::figure[The exit flow, in order]{id="exitflow" note="run it as a script, not as a checklist someone remembers"}
+:::
+
+:::qa[Is a trace log worth the tokens it costs to write?]
+It costs almost nothing — a line per tool call — and it converts "the agent seemed confused" into a timeline you can read. Without it, every incident review becomes a re-run of the session, which costs far more than the log ever did.
+:::
+
+:::qa[What does a cold-clone check actually prove?]
+That the repository is self-sufficient: no untracked file, no global dependency, no manual step that only exists on the machine where the work happened. It is the only check that validates the environment rather than the code, which is why it belongs at the end.
 :::

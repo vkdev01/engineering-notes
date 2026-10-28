@@ -3,7 +3,7 @@ section: "11"
 title: "The harness kit"
 kicker: "Output"
 abstract: "Four files in the root of any repository: the instruction entry point, the feature list, the startup script and the progress log. Everything above converges here."
-time: "8 min"
+time: "12 min"
 order: 11
 outcomes:
   - "Name the four files that make a minimum viable harness"
@@ -95,4 +95,49 @@ One command that exits non-zero when the feature is not done, whose output is re
 
 :::qa[How do you know the harness is working?]
 Sessions get shorter, retries get aimed, "it said done and it wasn't" stops appearing, and the model tier you need for a given task goes down rather than up. The last one is the strongest signal: the environment is doing the work instead of the model.
+:::
+
+## 11.5 Applying the kit to a small repo
+
+A worked example, start to finish, on a repository with no harness at all.
+
+```text
+before                              after (40 minutes of work)
+├── src/                            ├── AGENTS.md            90 lines, routes to docs/
+├── package.json                    ├── init.sh              4 commands, fails loud
+├── README.md      "npm run dev"    ├── feature_list.json    one row, with its check
+└── (no tests)                      ├── progress.md          3 headings
+                                    ├── docs/api.md          the conventions
+                                    ├── tests/e2e/           one flow, signed in
+                                    └── package.json         + "check": lint && test && e2e
+```
+
+Order of work, and why:
+
+1. **`package.json` + one e2e test.** Until something can fail, nothing else has a meaning. Write the smallest test that proves a user can do the main thing.
+2. **`init.sh`.** Wrap install, lint, test and e2e. Fail fast, print one success line.
+3. **`AGENTS.md`.** Now you know what to write: the invariants you just had to explain to yourself, and the `check` command.
+4. **`feature_list.json`.** One row — the thing you are working on — with its verification.
+5. **`progress.md`.** Three headings, filled at the end of the session, including on the days it went badly.
+
+## 11.6 The thirty-minute retrofit
+
+If the repo is already alive and busy, this is the sequence that causes the least disruption.
+
+| Minutes | Do | Why this order |
+| --- | --- | --- |
+| 0–8 | add `check` = lint && test && e2e | gives every later step something to point at |
+| 8–14 | write `init.sh`, run it on a cold clone | proves the environment before you document it |
+| 14–22 | write `AGENTS.md`: startup, invariants, done | now it can reference real commands |
+| 22–27 | create `feature_list.json` with the current work | converts the in-flight task into a verifiable row |
+| 27–30 | create `progress.md`, commit everything | gives the next session a starting point |
+
+Then leave it alone for a week and measure two numbers: time to first verified commit, and features reopened. If neither moves, the harness is decorative and you should find out why before adding more.
+
+:::qa[What is the most common mistake when retrofitting a harness onto a busy repo?]
+Writing the instruction file first. It ends up full of aspirations — "we value clean code" — because there are no commands to reference yet. Build the check first and the entry file writes itself, because it can only contain things that are true.
+:::
+
+:::qa[How do you get a team to adopt it without a mandate?]
+Make the check the only path to merging, and make it fast. Adoption follows from a green check being easier than arguing in review. A document asking people to follow a process is ignored; a CI job that takes 90 seconds and blocks a red merge is not.
 :::

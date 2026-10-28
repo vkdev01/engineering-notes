@@ -3,7 +3,7 @@ section: "9"
 title: "Loop engineering"
 kicker: "Automation"
 abstract: "Everything so far assumed you were at the keyboard. A loop has exactly three parts: a goal, a way to verify it, and a stopping condition."
-time: "12 min"
+time: "16 min"
 order: 9
 outcomes:
   - "State the three parts every loop must have"
@@ -67,4 +67,48 @@ The verification is a command, not the model's opinion, and the stopping conditi
 
 :::qa[What are the silent costs of an unattended loop?]
 Four. Retry storms when the failure is environmental. Context growth inside a single loop until quality degrades. Verification that quietly stops running — the loop reports success because nothing checked. And decisions made with no human in the path, which you discover later in the diff.
+:::
+
+## 9.5 Three loop patterns
+
+Almost every useful loop is one of these three. Start with the first; add the others only when you have hit their limitation.
+
+```text
+# 1. goal loop — run until a condition holds
+/goal "checkout e2e passes 10 consecutive runs"
+      --verify "npm run e2e -- checkout --repeat 10"
+      --stop "report after 3 failed attempts"
+Good for: a known failure with an unknown fix.
+Fails when: the goal is not machine-checkable.
+```
+
+```text
+# 2. timer loop — run on a schedule, one task per tick
+every 30 min: pick the highest-priority not_started feature,
+              implement it, run its verification, commit, record
+Good for: a backlog of small, independent, verifiable features.
+Fails when: features interact, or the queue runs dry and it invents work.
+```
+
+```text
+# 3. maker-checker loop — generate, judge, retry with the verdict
+generate → check against rubric → PASS? commit : retry with the verdict attached
+Good for: work where "does this meet the standard" is the hard part.
+Fails when: the rubric is vague — then it is two agents agreeing with each other.
+```
+
+## 9.6 What each pattern costs
+
+| Pattern | Main risk | What to instrument | When it pays off |
+| --- | --- | --- | --- |
+| Goal | retry storms on an environmental failure | attempts per run, failure reason | one flaky or failing check |
+| Timer | inventing work when the queue is empty | queue depth, features touched per tick | a long backlog of small rows |
+| Maker-checker | rubric drift, both agents wrong together | rejection rate, reasons cited | quality-sensitive changes |
+
+:::qa[Which loop would you run overnight, and why?]
+The goal loop, with an iteration cap and a stopping condition. It has the narrowest blast radius: one goal, one check, a bounded number of attempts, and a report either way. A timer loop overnight can touch many features and produce a queue of diffs nobody reviewed.
+:::
+
+:::qa[How do you stop a maker-checker loop from just agreeing with itself?]
+Give the checker evidence requirements it cannot satisfy by assertion: quote the command output, cite the line. Then measure the rejection rate — a checker that never rejects is not checking, and one that rejects everything has a rubric that does not match reality.
 :::
