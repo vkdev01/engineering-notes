@@ -1,8 +1,14 @@
 # Spec-sheet tutorial template
 
-A content-driven Next.js template for technical tutorials and references. Three-column
-reference layout, six light colour schemes, interactive exercises mounted from markdown,
-and an AI assistant that answers from your content using the Sarvam API.
+A content-driven Next.js template for technical tutorials and references. Course sidebar
+with search and nested topics, one reading column, seven light colour schemes, interactive
+exercises mounted from markdown, and an AI assistant that answers from your content using
+the Sarvam API.
+
+The layout follows the shape of [engineering-atlas.in](https://engineering-atlas.in/):
+white canvas, a wide left sidebar of numbered sections with the active one highlighted and
+its topics nested underneath, breadcrumbs above a large heading, a stat row, and a
+"by the end of this section you can" card driven by frontmatter.
 
 Everything you write lives in `content/*.md`. The app is generic: change the markdown, the
 course title, and you have a different tutorial.
@@ -54,12 +60,15 @@ content/
 
 ```yaml
 ---
-section: "2"          # the § number shown in the index and the header
+section: "2"          # the § number shown in the sidebar and the breadcrumb
 title: "What a harness is"
-kicker: "Definition"  # shown next to the section number
-abstract: "…"         # the indented standfirst under the H1
-time: "10 min"        # shown in the index and the status rail
+kicker: "Definition"  # shown in the eyebrow: "Section 2 · Definition"
+abstract: "…"         # the large standfirst under the H1
+time: "10 min"        # shown in the card, the stat row and the sidebar
 order: 2              # sort order; also drives prev/next
+outcomes:             # optional; renders the "by the end you can" card
+  - "Define the five subsystems of a harness"
+  - "Score a real repository from 0 to 4 on each subsystem"
 ---
 ```
 
@@ -132,10 +141,10 @@ Reusable CSS classes: `.sc` / `.sc-item` (slider rows), `.readout` (the result l
 
 ## Colour schemes
 
-Six light schemes, switched by the swatches in the top bar and remembered in
+Seven light schemes, switched by the swatches in the top bar and remembered in
 `localStorage` under `tutorial-theme`:
 
-`oxblood` (default) · `ink` · `moss` · `cobalt` · `rose` · `charcoal`
+`atlas` (default, violet) · `oxblood` · `ink` · `moss` · `cobalt` · `rose` · `charcoal`
 
 Each is one block of CSS variables at the top of `app/globals.css`:
 
@@ -181,6 +190,11 @@ SARVAM_BASE_URL=https://api.sarvam.ai
 Without a key the site still runs: the chat panel returns the retrieved passages and a
 note explaining how to set the key, so you can see the retrieval working before you pay
 for anything.
+
+**In the static (GitHub Pages) build** the assistant button is still rendered, but the panel
+opens with the composer disabled and a note explaining that this build has no server. That
+is deliberate: hiding it made the deployed site look like a different product. The button
+is wired to `disabled={STATIC_EXPORT}` in `app/layout.tsx`.
 
 **Tuning**
 
