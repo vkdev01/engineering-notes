@@ -128,6 +128,6 @@ timeline entry, so the read path is a sort over 800 entries rather than a rankin
 
 ## Where to go next
 
-- [Slow reads → cache](../patterns/slow-reads-cache.md)
-- [Write spikes → queue](../patterns/write-spikes-queue.md)
-- [Consistency models](../fundamentals/consistency.md)
+- [Slow reads → cache](/c/system-design/42-slow-reads-cache/)
+- [Write spikes → queue](/c/system-design/47-write-spikes-queue/)
+- [Consistency models](/c/system-design/08-consistency/)

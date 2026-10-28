@@ -73,6 +73,6 @@ from real latency data, not from a default in a library.
 
 ## Where to go next
 
-- [Circuit breaker](../building-blocks/circuit-breaker.md)
-- [Circuit breaker code](../code/circuit-breaker.md)
-- [Availability and reliability](../fundamentals/availability.md)
+- [Circuit breaker](/c/system-design/20-circuit-breaker/)
+- [Circuit breaker code](/c/system-design/63-circuit-breaker/)
+- [Availability and reliability](/c/system-design/06-availability/)

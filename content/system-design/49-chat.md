@@ -122,6 +122,6 @@ offer "jump to latest".
 
 ## Where to go next
 
-- [Message queue](../building-blocks/message-queue.md)
-- [Delivery semantics](../fundamentals/delivery-semantics.md)
-- [Networking for system design](../fundamentals/networking.md)
+- [Message queue](/c/system-design/25-message-queue/)
+- [Delivery semantics](/c/system-design/09-delivery-semantics/)
+- [Networking for system design](/c/system-design/11-networking/)

@@ -83,6 +83,6 @@ justification.
 
 ## Where to go next
 
-- [Idempotency](../building-blocks/idempotency.md)
-- [Idempotency store code](../code/idempotency.md)
-- [Delivery semantics](../fundamentals/delivery-semantics.md)
+- [Idempotency](/c/system-design/22-idempotency/)
+- [Idempotency store code](/c/system-design/65-idempotency/)
+- [Delivery semantics](/c/system-design/09-delivery-semantics/)

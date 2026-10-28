@@ -72,5 +72,5 @@ numbers" is genuinely sufficient.
 
 ## Where to go next
 
-- [Metrics pipeline case study](../case-studies/metrics-pipeline.md).
-- [Data storage models](../fundamentals/storage-models.md).
+- [Metrics pipeline case study](/c/system-design/53-metrics-pipeline/).
+- [Data storage models](/c/system-design/14-storage-models/).

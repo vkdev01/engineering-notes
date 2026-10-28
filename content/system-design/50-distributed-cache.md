@@ -142,6 +142,6 @@ be slightly behind.
 
 ## Where to go next
 
-- [Consistent hashing implementation](../code/consistent-hashing.md)
-- [Cache](../building-blocks/cache.md)
-- [Caching theory](../fundamentals/caching.md)
+- [Consistent hashing implementation](/c/system-design/64-consistent-hashing/)
+- [Cache](/c/system-design/18-cache/)
+- [Caching theory](/c/system-design/07-caching/)

@@ -78,5 +78,5 @@ flowchart LR
 
 ## Where to go next
 
-- [API gateway](api-gateway.md) — the layer above.
-- [Service discovery](service-discovery.md) — how the balancer finds backends.
+- [API gateway](/c/system-design/16-api-gateway/) — the layer above.
+- [Service discovery](/c/system-design/33-service-discovery/) — how the balancer finds backends.

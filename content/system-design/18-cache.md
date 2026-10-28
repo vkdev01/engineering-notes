@@ -11,7 +11,7 @@ order: 18
 
 A store in front of a slower source of truth, holding recently or frequently used data. For
 the theory — hit rate, working sets, write policies, stampedes — read [caching
-theory](../fundamentals/caching.md) first. This page is the operational version.
+theory](/c/system-design/07-caching/) first. This page is the operational version.
 
 ## The layers you actually deploy
 
@@ -73,5 +73,5 @@ you want data structures, atomic operations, or to use it for locks and rate lim
 
 ## Where to go next
 
-- [Caching theory](../fundamentals/caching.md).
-- [Distributed cache case study](../case-studies/distributed-cache.md).
+- [Caching theory](/c/system-design/07-caching/).
+- [Distributed cache case study](/c/system-design/50-distributed-cache/).

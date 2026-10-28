@@ -76,6 +76,6 @@ first.
 
 ## Where to go next
 
-- [Database indexes](../building-blocks/indexes.md)
-- [Data storage models](../fundamentals/storage-models.md)
-- [Latency and throughput](../fundamentals/latency-and-throughput.md)
+- [Database indexes](/c/system-design/23-indexes/)
+- [Data storage models](/c/system-design/14-storage-models/)
+- [Latency and throughput](/c/system-design/10-latency-and-throughput/)

@@ -84,6 +84,6 @@ explicitly — asking for them is a strong senior signal.
 
 ## Where to go next
 
-- [Consistency models](consistency.md) — the trade you make to get availability.
-- [Circuit breaker](../building-blocks/circuit-breaker.md) and [retry](../building-blocks/retry.md) — the mechanical defences.
-- [Observability](../building-blocks/observability.md) — how you find out before users do.
+- [Consistency models](/c/system-design/08-consistency/) — the trade you make to get availability.
+- [Circuit breaker](/c/system-design/20-circuit-breaker/) and [retry](/c/system-design/30-retry/) — the mechanical defences.
+- [Observability](/c/system-design/27-observability/) — how you find out before users do.

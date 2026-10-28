@@ -75,6 +75,6 @@ connection pool exhaustion.
 
 ## Where to go next
 
-- [Observability](../building-blocks/observability.md)
-- [Metrics pipeline case study](../case-studies/metrics-pipeline.md)
-- [Availability and reliability](../fundamentals/availability.md)
+- [Observability](/c/system-design/27-observability/)
+- [Metrics pipeline case study](/c/system-design/53-metrics-pipeline/)
+- [Availability and reliability](/c/system-design/06-availability/)

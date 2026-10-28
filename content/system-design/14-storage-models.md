@@ -71,6 +71,6 @@ record exists.
 
 ## Where to go next
 
-- [Indexes](../building-blocks/indexes.md) — making the dominant query cheap.
-- [Search index](../building-blocks/search-index.md).
-- [Batch and stream processing](../building-blocks/batch-and-stream.md).
+- [Indexes](/c/system-design/23-indexes/) — making the dominant query cheap.
+- [Search index](/c/system-design/32-search-index/).
+- [Batch and stream processing](/c/system-design/17-batch-and-stream/).

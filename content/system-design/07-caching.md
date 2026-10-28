@@ -106,6 +106,6 @@ that number is a better question than "should we cache?".
 
 ## Where to go next
 
-- [Cache building block](../building-blocks/cache.md) — the operational version.
-- [Slow reads → add a cache](../patterns/slow-reads-cache.md) — the pattern page.
-- [LRU cache implementation](../code/lru-cache.md).
+- [Cache building block](/c/system-design/18-cache/) — the operational version.
+- [Slow reads → add a cache](/c/system-design/42-slow-reads-cache/) — the pattern page.
+- [LRU cache implementation](/c/system-design/66-lru-cache/).

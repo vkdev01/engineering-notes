@@ -53,7 +53,7 @@ The work is trivially fast. Adding a queue adds latency, duplicates and a compon
 
 **Completion becomes asynchronous.** The API must return a pending state and the system must reconcile later. This is a product change, not just a technical one.
 
-**At-least-once delivery.** Duplicates are guaranteed at some point, so every consumer must be idempotent. See [delivery semantics](../fundamentals/delivery-semantics.md).
+**At-least-once delivery.** Duplicates are guaranteed at some point, so every consumer must be idempotent. See [delivery semantics](/c/system-design/09-delivery-semantics/).
 
 **Ordering is per key, not global.** Global ordering means one partition and one consumer, which caps throughput. Choose the partition key from what needs ordering.
 
@@ -82,6 +82,6 @@ count is hard to increase later without breaking key ordering guarantees.
 
 ## Where to go next
 
-- [Message queue](../building-blocks/message-queue.md)
-- [Delivery semantics](../fundamentals/delivery-semantics.md)
-- [Notification case study](../case-studies/notifications.md)
+- [Message queue](/c/system-design/25-message-queue/)
+- [Delivery semantics](/c/system-design/09-delivery-semantics/)
+- [Notification case study](/c/system-design/55-notifications/)

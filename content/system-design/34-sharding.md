@@ -12,7 +12,7 @@ order: 34
 Horizontal partitioning of rows across separate database instances, by a **shard key**.
 Each shard is an independent database with its own resources and its own failure domain.
 
-Read [replication and partitioning](../fundamentals/replication-and-partitioning.md) for the
+Read [replication and partitioning](/c/system-design/12-replication-and-partitioning/) for the
 strategies. This page is about doing it.
 
 ## The decision sequence
@@ -91,6 +91,6 @@ Bad choices: `created_at` (every recent write to one shard), `country` (uneven),
 
 ## Where to go next
 
-- [Write-heavy DB → shard](../patterns/write-heavy-shard.md).
-- [Shard router implementation](../code/sharding.md).
-- [Consistent hashing](../code/consistent-hashing.md).
+- [Write-heavy DB → shard](/c/system-design/46-write-heavy-shard/).
+- [Shard router implementation](/c/system-design/68-sharding/).
+- [Consistent hashing](/c/system-design/64-consistent-hashing/).

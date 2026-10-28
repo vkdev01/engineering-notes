@@ -27,7 +27,7 @@ message is redelivered. There is no way for the broker to know whether the side 
 happened, because the side effect and the offset are two different systems.
 
 The only robust fix: **make the side effect idempotent**, keyed by a stable identifier from
-the message. See [idempotency](../building-blocks/idempotency.md).
+the message. See [idempotency](/c/system-design/22-idempotency/).
 
 ## Ordering
 
@@ -70,5 +70,5 @@ Monday.
 
 ## Where to go next
 
-- [Message queue](../building-blocks/message-queue.md) — the component.
-- [Idempotency](../building-blocks/idempotency.md) — making duplicates harmless.
+- [Message queue](/c/system-design/25-message-queue/) — the component.
+- [Idempotency](/c/system-design/22-idempotency/) — making duplicates harmless.

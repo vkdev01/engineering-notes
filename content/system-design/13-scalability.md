@@ -70,8 +70,8 @@ common estimation error in interviews.
 - **Writes** scale by partitioning: sharding, queues, batching. Duplicating a write is a
   correctness bug, so writes must be split rather than copied.
 
-That asymmetry is why [read replicas](../building-blocks/read-replicas.md) are cheap and
-[sharding](../building-blocks/sharding.md) is expensive.
+That asymmetry is why [read replicas](/c/system-design/29-read-replicas/) are cheap and
+[sharding](/c/system-design/34-sharding/) is expensive.
 
 ## When to reach for it
 
@@ -95,7 +95,7 @@ more operational complexity than the last.
 
 ## Where to go next
 
-- [Latency and throughput](latency-and-throughput.md) — why more capacity does not always
+- [Latency and throughput](/c/system-design/10-latency-and-throughput/) — why more capacity does not always
   mean faster responses.
-- [Replication and partitioning](replication-and-partitioning.md) — the mechanics of
+- [Replication and partitioning](/c/system-design/12-replication-and-partitioning/) — the mechanics of
   scaling data.

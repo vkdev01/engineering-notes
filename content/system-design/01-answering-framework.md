@@ -28,7 +28,7 @@ Two or three clarifying questions follow, each tied to a design decision:
 ## Step 2 — Put numbers on it (3–5 min)
 
 Derive peak QPS, storage per year, and a latency target. Show the arithmetic. See
-[estimation drills](estimation.md) for the method.
+[estimation drills](/c/system-design/02-estimation/) for the method.
 
 > "10 million daily users, each reading the feed twenty times and posting twice, so 200M
 > reads and 20M writes a day. Average is about 2,300 read QPS; peak at three times

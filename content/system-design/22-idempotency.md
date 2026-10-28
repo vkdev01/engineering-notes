@@ -96,6 +96,6 @@ These are cheaper than a key store and worth reaching for first.
 
 ## Where to go next
 
-- [Idempotency store implementation](../code/idempotency.md).
-- [Duplicate requests → idempotency](../patterns/duplicate-requests-idempotency.md).
-- [Delivery semantics](../fundamentals/delivery-semantics.md).
+- [Idempotency store implementation](/c/system-design/65-idempotency/).
+- [Duplicate requests → idempotency](/c/system-design/37-duplicate-requests-idempotency/).
+- [Delivery semantics](/c/system-design/09-delivery-semantics/).

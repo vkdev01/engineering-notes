@@ -79,5 +79,5 @@ flowchart LR
 
 ## Where to go next
 
-- [Load balancer](load-balancer.md) and [rate limiter](rate-limiter.md).
-- [Observability](observability.md) — the gateway is the best place to start tracing.
+- [Load balancer](/c/system-design/24-load-balancer/) and [rate limiter](/c/system-design/28-rate-limiter/).
+- [Observability](/c/system-design/27-observability/) — the gateway is the best place to start tracing.

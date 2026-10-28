@@ -73,6 +73,6 @@ usually hiding a client that should be batching.
 
 ## Where to go next
 
-- [Rate limiter](../building-blocks/rate-limiter.md)
-- [Token bucket code](../code/token-bucket.md)
-- [Design a rate limiter](../case-studies/rate-limiter-service.md)
+- [Rate limiter](/c/system-design/28-rate-limiter/)
+- [Token bucket code](/c/system-design/69-token-bucket/)
+- [Design a rate limiter](/c/system-design/57-rate-limiter-service/)

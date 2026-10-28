@@ -63,7 +63,7 @@ fewer round trips.**
    handle this.
 2. **Partial failure** — the request succeeded but the response was lost. The client cannot
    distinguish this from failure, which is exactly why writes need
-   [idempotency keys](../building-blocks/idempotency.md).
+   [idempotency keys](/c/system-design/22-idempotency/).
 3. **Connection exhaustion** — a slow dependency consumes the pool; new requests queue
    behind dead ones. Bulkheads and breakers.
 4. **Asymmetric partitions** — A can reach B but B cannot reach A. Rare, and it defeats
@@ -87,5 +87,5 @@ fewer round trips.**
 
 ## Where to go next
 
-- [CDN](../building-blocks/cdn.md) — the network's answer to distance.
-- [Load balancer](../building-blocks/load-balancer.md).
+- [CDN](/c/system-design/19-cdn/) — the network's answer to distance.
+- [Load balancer](/c/system-design/24-load-balancer/).

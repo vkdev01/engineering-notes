@@ -76,5 +76,5 @@ ever fix it. The outbox keeps the event durable alongside the data.
 
 ## Where to go next
 
-- [Data storage models](../fundamentals/storage-models.md).
-- [Search autocomplete case study](../case-studies/autocomplete.md).
+- [Data storage models](/c/system-design/14-storage-models/).
+- [Search autocomplete case study](/c/system-design/48-autocomplete/).

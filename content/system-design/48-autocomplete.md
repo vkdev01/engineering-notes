@@ -136,6 +136,6 @@ past. Without it, the service sees five times the traffic and users see flickeri
 
 ## Where to go next
 
-- [Search index](../building-blocks/search-index.md)
-- [Slow reads → cache](../patterns/slow-reads-cache.md)
-- [Batch and stream processing](../building-blocks/batch-and-stream.md)
+- [Search index](/c/system-design/32-search-index/)
+- [Slow reads → cache](/c/system-design/42-slow-reads-cache/)
+- [Batch and stream processing](/c/system-design/17-batch-and-stream/)

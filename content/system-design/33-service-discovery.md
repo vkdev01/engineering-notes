@@ -70,6 +70,6 @@ virtual IP; endpoints are updated as pods become ready. The subtleties that bite
 
 ## Where to go next
 
-- [Load balancer](load-balancer.md).
-- [Circuit breaker](circuit-breaker.md) — what to do when the address is fine but the service
+- [Load balancer](/c/system-design/24-load-balancer/).
+- [Circuit breaker](/c/system-design/20-circuit-breaker/) — what to do when the address is fine but the service
   is not.

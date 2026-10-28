@@ -110,6 +110,6 @@ sequence — and you pay a round trip per ID.
 
 ## Where to go next
 
-- [Sharding](../building-blocks/sharding.md)
-- [URL shortener](url-shortener.md)
-- [Distributed locks](../building-blocks/distributed-locks.md)
+- [Sharding](/c/system-design/34-sharding/)
+- [URL shortener](/c/system-design/60-url-shortener/)
+- [Distributed locks](/c/system-design/21-distributed-locks/)

@@ -83,6 +83,6 @@ call, and make the others fail fast.
 
 ## Where to go next
 
-- [Retry implementation](../code/retry.md).
-- [Temporary failures → retry](../patterns/temporary-failures-retry.md).
-- [Idempotency](idempotency.md).
+- [Retry implementation](/c/system-design/67-retry/).
+- [Temporary failures → retry](/c/system-design/43-temporary-failures-retry/).
+- [Idempotency](/c/system-design/22-idempotency/).

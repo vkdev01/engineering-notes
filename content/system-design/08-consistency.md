@@ -81,5 +81,5 @@ the difference between a design and a wish.
 
 ## Where to go next
 
-- [Replication and partitioning](replication-and-partitioning.md) — where the lag comes from.
-- [ACID, BASE and transactions](transactions.md) — consistency within one node.
+- [Replication and partitioning](/c/system-design/12-replication-and-partitioning/) — where the lag comes from.
+- [ACID, BASE and transactions](/c/system-design/15-transactions/) — consistency within one node.

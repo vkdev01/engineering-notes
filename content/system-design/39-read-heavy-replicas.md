@@ -76,6 +76,6 @@ two seconds, because that is where the routing window stops being safe.
 
 ## Where to go next
 
-- [Read replicas](../building-blocks/read-replicas.md)
-- [Replication and partitioning](../fundamentals/replication-and-partitioning.md)
-- [Consistency models](../fundamentals/consistency.md)
+- [Read replicas](/c/system-design/29-read-replicas/)
+- [Replication and partitioning](/c/system-design/12-replication-and-partitioning/)
+- [Consistency models](/c/system-design/08-consistency/)

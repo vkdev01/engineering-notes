@@ -138,6 +138,6 @@ payment cannot charge twice or create two bookings.
 
 ## Where to go next
 
-- [ACID, BASE and transactions](../fundamentals/transactions.md)
-- [Idempotency](../building-blocks/idempotency.md)
-- [Too many requests → rate limit](../patterns/too-many-requests-rate-limit.md)
+- [ACID, BASE and transactions](/c/system-design/15-transactions/)
+- [Idempotency](/c/system-design/22-idempotency/)
+- [Too many requests → rate limit](/c/system-design/44-too-many-requests-rate-limit/)

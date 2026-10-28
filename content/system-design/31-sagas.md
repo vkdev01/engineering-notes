@@ -94,5 +94,5 @@ reasons.
 
 ## Where to go next
 
-- [ACID, BASE and transactions](../fundamentals/transactions.md).
-- [Payments and ledger case study](../case-studies/payments-ledger.md).
+- [ACID, BASE and transactions](/c/system-design/15-transactions/).
+- [Payments and ledger case study](/c/system-design/56-payments-ledger/).

@@ -125,6 +125,6 @@ what prevents a stuck offer from removing a driver from circulation.
 
 ## Where to go next
 
-- [Cache](../building-blocks/cache.md)
-- [Idempotency](../building-blocks/idempotency.md)
-- [Distributed locks](../building-blocks/distributed-locks.md)
+- [Cache](/c/system-design/18-cache/)
+- [Idempotency](/c/system-design/22-idempotency/)
+- [Distributed locks](/c/system-design/21-distributed-locks/)

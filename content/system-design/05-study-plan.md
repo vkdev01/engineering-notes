@@ -15,18 +15,18 @@ and three.
 
 | Day | Read | Do |
 | --- | --- | --- |
-| 1 | [Scalability](../fundamentals/scalability.md), [latency and throughput](../fundamentals/latency-and-throughput.md) | Estimate QPS and storage for an imaginary Instagram. |
-| 2 | [Availability](../fundamentals/availability.md) | Compute the availability of a five-service chain. |
-| 3 | [Consistency models](../fundamentals/consistency.md) | Write down three product features that need strong consistency and three that do not. |
-| 4 | [Replication and partitioning](../fundamentals/replication-and-partitioning.md) | Sketch replication lag's effect on a "post then read" flow. |
-| 5 | [Estimation drills](estimation.md) | Redo the two worked examples from memory. |
+| 1 | [Scalability](/c/system-design/13-scalability/), [latency and throughput](/c/system-design/10-latency-and-throughput/) | Estimate QPS and storage for an imaginary Instagram. |
+| 2 | [Availability](/c/system-design/06-availability/) | Compute the availability of a five-service chain. |
+| 3 | [Consistency models](/c/system-design/08-consistency/) | Write down three product features that need strong consistency and three that do not. |
+| 4 | [Replication and partitioning](/c/system-design/12-replication-and-partitioning/) | Sketch replication lag's effect on a "post then read" flow. |
+| 5 | [Estimation drills](/c/system-design/02-estimation/) | Redo the two worked examples from memory. |
 
 **Checkpoint:** explain to someone, in under two minutes, why 7 TB a year does not need
 sharding.
 
 ## Week 2 — Building blocks
 
-Read two blocks a day from [building blocks](../building-blocks/index.md), in this order:
+Read two blocks a day from [building blocks](/c/system-design/), in this order:
 load balancer, API gateway, CDN, object storage, cache, queue, indexes, replicas,
 sharding, rate limiter, circuit breaker, retry, idempotency, distributed locks, search,
 service discovery, observability, sagas, batch and stream.
@@ -41,11 +41,11 @@ reread.
 
 | Day | Read | Do |
 | --- | --- | --- |
-| 1 | [The twelve patterns](../patterns/index.md) plus [choosing between fixes](../patterns/choosing-between-fixes.md) | Recite the twelve from memory. |
-| 2 | [URL shortener](../case-studies/url-shortener.md), [rate limiter](../case-studies/rate-limiter-service.md) | Redraw both from memory afterwards. |
-| 3 | [News feed](../case-studies/news-feed.md), [chat](../case-studies/chat.md) | Note where each diverges from the other. |
-| 4 | [Video platform](../case-studies/video-platform.md), [file sync](../case-studies/file-sync.md) | Estimate storage and egress for both. |
-| 5 | [Ticket booking](../case-studies/ticket-booking.md), [payments](../case-studies/payments-ledger.md) | Focus on the correctness constraints. |
+| 1 | [The twelve patterns](/c/system-design/) plus [choosing between fixes](/c/system-design/36-choosing-between-fixes/) | Recite the twelve from memory. |
+| 2 | [URL shortener](/c/system-design/60-url-shortener/), [rate limiter](/c/system-design/57-rate-limiter-service/) | Redraw both from memory afterwards. |
+| 3 | [News feed](/c/system-design/54-news-feed/), [chat](/c/system-design/49-chat/) | Note where each diverges from the other. |
+| 4 | [Video platform](/c/system-design/61-video-platform/), [file sync](/c/system-design/51-file-sync/) | Estimate storage and egress for both. |
+| 5 | [Ticket booking](/c/system-design/59-ticket-booking/), [payments](/c/system-design/56-payments-ledger/) | Focus on the correctness constraints. |
 
 **Checkpoint:** two case studies, redrawn on blank paper, twenty minutes each.
 
@@ -53,19 +53,19 @@ reread.
 
 | Day | Do |
 | --- | --- |
-| 1 | Read [a framework for answering](answering-framework.md) and time yourself on one case study. |
-| 2 | [Mock walkthrough](../interview/mock-walkthrough.md), out loud, with a timer. |
-| 3 | [Common mistakes](../interview/common-mistakes.md); pick your two worst habits and write a fix for each. |
-| 4 | Two case studies from the [question bank](../interview/question-bank.md) you have not read. |
-| 5 | [Trade-off cheat sheet](../interview/trade-off-cheatsheet.md), then one full mock with a friend. |
+| 1 | Read [a framework for answering](/c/system-design/01-answering-framework/) and time yourself on one case study. |
+| 2 | [Mock walkthrough](/c/system-design/72-mock-walkthrough/), out loud, with a timer. |
+| 3 | [Common mistakes](/c/system-design/70-common-mistakes/); pick your two worst habits and write a fix for each. |
+| 4 | Two case studies from the [question bank](/c/system-design/73-question-bank/) you have not read. |
+| 5 | [Trade-off cheat sheet](/c/system-design/74-trade-off-cheatsheet/), then one full mock with a friend. |
 
 **Checkpoint:** a forty-five minute session where you talk for at least thirty of the
 minutes and the other person interrupts fewer than three times.
 
 ## What to do if you only have three days
 
-Day 1: [answering framework](answering-framework.md), [estimation](estimation.md), and
-the [twelve patterns](../patterns/index.md). Day 2: [trade-off cheat
-sheet](../interview/trade-off-cheatsheet.md) and four case studies. Day 3: two timed
+Day 1: [answering framework](/c/system-design/01-answering-framework/), [estimation](/c/system-design/02-estimation/), and
+the [twelve patterns](/c/system-design/). Day 2: [trade-off cheat
+sheet](/c/system-design/74-trade-off-cheatsheet/) and four case studies. Day 3: two timed
 mock answers, out loud, recorded if possible. Listening to your own recording is
 uncomfortable and effective.

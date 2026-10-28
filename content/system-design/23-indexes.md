@@ -95,5 +95,5 @@ actually changed.
 
 ## Where to go next
 
-- [Slow queries → indexes](../patterns/slow-queries-indexes.md).
-- [Data storage models](../fundamentals/storage-models.md).
+- [Slow queries → indexes](/c/system-design/41-slow-queries-indexes/).
+- [Data storage models](/c/system-design/14-storage-models/).

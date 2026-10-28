@@ -125,6 +125,6 @@ counter and flush deltas every 30 seconds. Counts become approximate, which is f
 
 ## Where to go next
 
-- [Slow reads → cache](../patterns/slow-reads-cache.md)
-- [Read-heavy DB → replicas](../patterns/read-heavy-replicas.md)
-- [Unique ID generator](id-generator.md)
+- [Slow reads → cache](/c/system-design/42-slow-reads-cache/)
+- [Read-heavy DB → replicas](/c/system-design/39-read-heavy-replicas/)
+- [Unique ID generator](/c/system-design/52-id-generator/)

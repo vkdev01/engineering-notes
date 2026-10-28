@@ -78,5 +78,5 @@ Three approaches, cheapest first:
 
 ## Where to go next
 
-- [Replication and partitioning](../fundamentals/replication-and-partitioning.md).
-- [Read-heavy DB → replicas](../patterns/read-heavy-replicas.md).
+- [Replication and partitioning](/c/system-design/12-replication-and-partitioning/).
+- [Read-heavy DB → replicas](/c/system-design/39-read-heavy-replicas/).

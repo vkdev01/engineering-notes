@@ -129,6 +129,6 @@ Alerts need dedupe and grouping, or one broken dependency produces five hundred 
 
 ## Where to go next
 
-- [Observability](../building-blocks/observability.md)
-- [Batch and stream processing](../building-blocks/batch-and-stream.md)
-- [Cannot see what broke → telemetry](../patterns/cannot-see-what-broke-telemetry.md)
+- [Observability](/c/system-design/27-observability/)
+- [Batch and stream processing](/c/system-design/17-batch-and-stream/)
+- [Cannot see what broke → telemetry](/c/system-design/35-cannot-see-what-broke-telemetry/)

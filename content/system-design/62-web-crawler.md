@@ -121,6 +121,6 @@ failures, and a per-host page budget so a broken or infinite site cannot consume
 
 ## Where to go next
 
-- [Write spikes → queue](../patterns/write-spikes-queue.md)
-- [Message queue](../building-blocks/message-queue.md)
-- [Search index](../building-blocks/search-index.md)
+- [Write spikes → queue](/c/system-design/47-write-spikes-queue/)
+- [Message queue](/c/system-design/25-message-queue/)
+- [Search index](/c/system-design/32-search-index/)

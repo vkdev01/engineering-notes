@@ -81,6 +81,6 @@ the total.
 
 ## Where to go next
 
-- [Load balancer](../building-blocks/load-balancer.md)
-- [Scalability](../fundamentals/scalability.md)
-- [API gateway](../building-blocks/api-gateway.md)
+- [Load balancer](/c/system-design/24-load-balancer/)
+- [Scalability](/c/system-design/13-scalability/)
+- [API gateway](/c/system-design/16-api-gateway/)

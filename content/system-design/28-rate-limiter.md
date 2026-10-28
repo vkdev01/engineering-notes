@@ -81,6 +81,6 @@ N×100. Two honest options:
 
 ## Where to go next
 
-- [Token bucket implementation](../code/token-bucket.md).
-- [Design a rate limiter](../case-studies/rate-limiter-service.md).
-- [Too many requests → rate limit](../patterns/too-many-requests-rate-limit.md).
+- [Token bucket implementation](/c/system-design/69-token-bucket/).
+- [Design a rate limiter](/c/system-design/57-rate-limiter-service/).
+- [Too many requests → rate limit](/c/system-design/44-too-many-requests-rate-limit/).

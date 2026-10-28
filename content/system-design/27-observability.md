@@ -89,5 +89,5 @@ minutes is a page; 2× for an hour is a ticket.
 
 ## Where to go next
 
-- [Can't see what broke → telemetry](../patterns/cannot-see-what-broke-telemetry.md).
-- [Metrics pipeline case study](../case-studies/metrics-pipeline.md).
+- [Can't see what broke → telemetry](/c/system-design/35-cannot-see-what-broke-telemetry/).
+- [Metrics pipeline case study](/c/system-design/53-metrics-pipeline/).

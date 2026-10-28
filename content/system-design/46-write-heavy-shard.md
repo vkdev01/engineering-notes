@@ -79,6 +79,6 @@ compaction and replica rebuilds have room.
 
 ## Where to go next
 
-- [Sharding](../building-blocks/sharding.md)
-- [Replication and partitioning](../fundamentals/replication-and-partitioning.md)
-- [Shard router code](../code/sharding.md)
+- [Sharding](/c/system-design/34-sharding/)
+- [Replication and partitioning](/c/system-design/12-replication-and-partitioning/)
+- [Shard router code](/c/system-design/68-sharding/)

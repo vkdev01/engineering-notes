@@ -76,6 +76,6 @@ holding a thread for long enough to matter.
 
 ## Where to go next
 
-- [Retry and backoff](../building-blocks/retry.md)
-- [Retry implementation](../code/retry.md)
-- [Idempotency](../building-blocks/idempotency.md)
+- [Retry and backoff](/c/system-design/30-retry/)
+- [Retry implementation](/c/system-design/67-retry/)
+- [Idempotency](/c/system-design/22-idempotency/)

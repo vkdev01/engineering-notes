@@ -132,6 +132,6 @@ window, and we accept that".
 
 ## Where to go next
 
-- [Rate limiter](../building-blocks/rate-limiter.md)
-- [Token bucket implementation](../code/token-bucket.md)
-- [Too many requests → rate limit](../patterns/too-many-requests-rate-limit.md)
+- [Rate limiter](/c/system-design/28-rate-limiter/)
+- [Token bucket implementation](/c/system-design/69-token-bucket/)
+- [Too many requests → rate limit](/c/system-design/44-too-many-requests-rate-limit/)

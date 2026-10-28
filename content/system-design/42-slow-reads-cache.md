@@ -79,6 +79,6 @@ database load by 10×, and the improvement is entirely in the tail.
 
 ## Where to go next
 
-- [Caching theory](../fundamentals/caching.md)
-- [Cache building block](../building-blocks/cache.md)
-- [LRU implementation](../code/lru-cache.md)
+- [Caching theory](/c/system-design/07-caching/)
+- [Cache building block](/c/system-design/18-cache/)
+- [LRU implementation](/c/system-design/66-lru-cache/)

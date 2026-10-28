@@ -71,5 +71,5 @@ flowchart LR
 
 ## Where to go next
 
-- [Object storage](object-storage.md) — the origin behind the CDN.
-- [Slow files → object storage + CDN](../patterns/slow-files-object-storage-cdn.md).
+- [Object storage](/c/system-design/26-object-storage/) — the origin behind the CDN.
+- [Slow files → object storage + CDN](/c/system-design/40-slow-files-object-storage-cdn/).

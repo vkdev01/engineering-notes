@@ -77,6 +77,6 @@ typically 90–99% for media.
 
 ## Where to go next
 
-- [CDN](../building-blocks/cdn.md)
-- [Object storage](../building-blocks/object-storage.md)
-- [Video platform case study](../case-studies/video-platform.md)
+- [CDN](/c/system-design/19-cdn/)
+- [Object storage](/c/system-design/26-object-storage/)
+- [Video platform case study](/c/system-design/61-video-platform/)

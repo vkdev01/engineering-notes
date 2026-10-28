@@ -44,7 +44,7 @@ Asynchronous replication means a follower is behind by the time it takes to ship
 apply the log — single-digit milliseconds in a datacenter, seconds under load, and
 unbounded if a follower falls over. Everything users complain about follows from that:
 
-- Read-your-writes violations (see [consistency](consistency.md)).
+- Read-your-writes violations (see [consistency](/c/system-design/08-consistency/)).
 - Monotonic-read violations when a client moves between replicas.
 - Failover data loss equal to the lag at the moment of failure.
 
@@ -104,5 +104,5 @@ metadata change, not a data rewrite.
 
 ## Where to go next
 
-- [Read replicas](../building-blocks/read-replicas.md) and [sharding](../building-blocks/sharding.md) — the operational versions.
-- [Consistent hashing](../code/consistent-hashing.md) — a working implementation.
+- [Read replicas](/c/system-design/29-read-replicas/) and [sharding](/c/system-design/34-sharding/) — the operational versions.
+- [Consistent hashing](/c/system-design/64-consistent-hashing/) — a working implementation.

@@ -75,5 +75,5 @@ only handles metadata.
 
 ## Where to go next
 
-- [CDN](cdn.md) — the read side.
-- [Slow files → object storage + CDN](../patterns/slow-files-object-storage-cdn.md).
+- [CDN](/c/system-design/19-cdn/) — the read side.
+- [Slow files → object storage + CDN](/c/system-design/40-slow-files-object-storage-cdn/).

@@ -85,5 +85,5 @@ distributed transactions and it is what mature systems do.
 
 ## Where to go next
 
-- [Sagas and workflows](../building-blocks/sagas.md) — the coordination patterns in detail.
-- [Idempotency](../building-blocks/idempotency.md) — the primitive that makes retries safe.
+- [Sagas and workflows](/c/system-design/31-sagas/) — the coordination patterns in detail.
+- [Idempotency](/c/system-design/22-idempotency/) — the primitive that makes retries safe.

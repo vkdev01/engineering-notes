@@ -86,5 +86,5 @@ tuning, because the network is 5,000× slower than memory.
 
 ## Where to go next
 
-- [Caching theory](caching.md) — the highest-leverage way to remove latency.
-- [Networking](networking.md) — where the milliseconds actually go.
+- [Caching theory](/c/system-design/07-caching/) — the highest-leverage way to remove latency.
+- [Networking](/c/system-design/11-networking/) — where the milliseconds actually go.

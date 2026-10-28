@@ -85,6 +85,6 @@ dependency. Bulkheads (separate pools per dependency) complete the set.
 
 ## Where to go next
 
-- [Circuit breaker implementation](../code/circuit-breaker.md).
-- [Retry and backoff](retry.md) — the partner pattern.
-- [One service failing → breaker](../patterns/one-service-failing-breaker.md).
+- [Circuit breaker implementation](/c/system-design/63-circuit-breaker/).
+- [Retry and backoff](/c/system-design/30-retry/) — the partner pattern.
+- [One service failing → breaker](/c/system-design/38-one-service-failing-breaker/).

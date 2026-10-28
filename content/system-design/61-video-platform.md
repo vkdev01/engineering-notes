@@ -126,6 +126,6 @@ decision rather than a technical one. What reduces egress:
 
 ## Where to go next
 
-- [CDN](../building-blocks/cdn.md)
-- [Object storage](../building-blocks/object-storage.md)
-- [Slow files → object storage + CDN](../patterns/slow-files-object-storage-cdn.md)
+- [CDN](/c/system-design/19-cdn/)
+- [Object storage](/c/system-design/26-object-storage/)
+- [Slow files → object storage + CDN](/c/system-design/40-slow-files-object-storage-cdn/)

@@ -91,5 +91,5 @@ sequenceDiagram
 
 ## Where to go next
 
-- [Sagas and workflows](sagas.md) — coordination without locks.
-- [Idempotency](idempotency.md) — usually the better answer.
+- [Sagas and workflows](/c/system-design/31-sagas/) — coordination without locks.
+- [Idempotency](/c/system-design/22-idempotency/) — usually the better answer.

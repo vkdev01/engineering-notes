@@ -133,6 +133,6 @@ exactly the priority split again.
 
 ## Where to go next
 
-- [Message queue](../building-blocks/message-queue.md)
-- [Rate limiter](../building-blocks/rate-limiter.md)
-- [Circuit breaker](../building-blocks/circuit-breaker.md)
+- [Message queue](/c/system-design/25-message-queue/)
+- [Rate limiter](/c/system-design/28-rate-limiter/)
+- [Circuit breaker](/c/system-design/20-circuit-breaker/)

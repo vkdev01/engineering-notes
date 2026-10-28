@@ -70,7 +70,7 @@ flowchart LR
 - **Rebalance storms** — consumers joining and leaving repeatedly stop the world; tune
   session timeouts.
 - **Unbounded retention** filling disks → retention policy and monitoring.
-- **Exactly-once believed** — see [delivery semantics](../fundamentals/delivery-semantics.md).
+- **Exactly-once believed** — see [delivery semantics](/c/system-design/09-delivery-semantics/).
 
 ## Interview soundbite
 
@@ -80,6 +80,6 @@ flowchart LR
 
 ## Where to go next
 
-- [Delivery semantics](../fundamentals/delivery-semantics.md).
-- [Write spikes → queue](../patterns/write-spikes-queue.md).
-- [Batch and stream processing](batch-and-stream.md).
+- [Delivery semantics](/c/system-design/09-delivery-semantics/).
+- [Write spikes → queue](/c/system-design/47-write-spikes-queue/).
+- [Batch and stream processing](/c/system-design/17-batch-and-stream/).

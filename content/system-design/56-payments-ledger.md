@@ -137,6 +137,6 @@ happen.
 
 ## Where to go next
 
-- [ACID, BASE and transactions](../fundamentals/transactions.md)
-- [Idempotency](../building-blocks/idempotency.md)
-- [Sagas and workflows](../building-blocks/sagas.md)
+- [ACID, BASE and transactions](/c/system-design/15-transactions/)
+- [Idempotency](/c/system-design/22-idempotency/)
+- [Sagas and workflows](/c/system-design/31-sagas/)

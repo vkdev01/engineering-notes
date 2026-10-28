@@ -126,6 +126,6 @@ listing.
 
 ## Where to go next
 
-- [Object storage](../building-blocks/object-storage.md)
-- [Idempotency](../building-blocks/idempotency.md)
-- [Consistency models](../fundamentals/consistency.md)
+- [Object storage](/c/system-design/26-object-storage/)
+- [Idempotency](/c/system-design/22-idempotency/)
+- [Consistency models](/c/system-design/08-consistency/)

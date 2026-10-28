@@ -45,13 +45,13 @@ in version control next to the prose that describes them.
 
 ## Three reading paths
 
-**One week to the interview.** [Anatomy of the interview](interview-format.md) → [the
-answering framework](answering-framework.md) → [trade-off cheat
-sheet](../interview/trade-off-cheatsheet.md) → three case studies out loud, timed. Skip
+**One week to the interview.** [Anatomy of the interview](/c/system-design/04-interview-format/) → [the
+answering framework](/c/system-design/01-answering-framework/) → [trade-off cheat
+sheet](/c/system-design/74-trade-off-cheatsheet/) → three case studies out loud, timed. Skip
 everything else. This path works because the trade-off sheet is a compressed version of
 the whole guide.
 
-**Learning properly, over a month.** Follow the [study plan](study-plan.md):
+**Learning properly, over a month.** Follow the [study plan](/c/system-design/05-study-plan/):
 Fundamentals, then Building blocks, then the twelve patterns, then case studies with the
 book closed.
 
@@ -60,7 +60,7 @@ screen is written for the reader who arrived from a search engine mid-task.
 
 ## A note on the code samples
 
-The [code section](../code/index.md) contains short, tested Python implementations of
+The [code section](/c/system-design/) contains short, tested Python implementations of
 the mechanisms that are easiest to describe and hardest to get right: exponential
 backoff with jitter, a token bucket, a circuit breaker state machine, an idempotency
 store, consistent hashing, shard routing, and an LRU cache.
