@@ -312,6 +312,126 @@ const FIGURES: Record<string, { w: number; h: number; node: React.ReactNode }> =
       </>
     ),
   },
+
+  /* 6. triage tree */
+  triage: {
+    w: 720,
+    h: 300,
+    node: (
+      <>
+        <Defs />
+        <Box x={272} y={12} w={176} h={44} label="session went wrong" style={S.accent} />
+        <Arrow d="M 320 56 C 300 80 200 84 170 104" />
+        <Arrow d="M 360 56 L 360 104" />
+        <Arrow d="M 400 56 C 420 80 520 84 550 104" />
+
+        <Box x={84} y={106} w={172} h={46} label="wrong output" sub="it built the wrong thing" />
+        <Box x={274} y={106} w={172} h={46} label="no output" sub="it stalled or looped" />
+        <Box x={464} y={106} w={172} h={46} label="slow output" sub="it took all day" />
+
+        <text x={170} y={176} textAnchor="middle" {...S.mono}>INSTRUCTIONS · SCOPE</text>
+        <text x={360} y={176} textAnchor="middle" {...S.mono}>ENVIRONMENT · STATE</text>
+        <text x={550} y={176} textAnchor="middle" {...S.mono}>INSTRUCTIONS · TOOLS</text>
+
+        <text x={170} y={198} textAnchor="middle" {...S.small}>spec unclear? scope missing?</text>
+        <text x={360} y={198} textAnchor="middle" {...S.small}>tests red? state lost?</text>
+        <text x={550} y={198} textAnchor="middle" {...S.small}>file too long? no route?</text>
+
+        <line x1={16} y1={222} x2={704} y2={222} stroke="var(--rule)" />
+        <text x={16} y={244} {...S.small}>And the one that is not a harness problem: the task is beyond the model. Three runs, good harness, same failure.</text>
+        <text x={16} y={266} {...S.small}>Then it is a capability gap and more scaffolding will not close it.</text>
+        <text x={16} y={290} {...S.mono}>ATTRIBUTE FIRST, CHANGE SECOND</text>
+      </>
+    ),
+  },
+
+  /* 7. the rule-growth loop */
+  bloat: {
+    w: 720,
+    h: 250,
+    node: (
+      <>
+        <Defs />
+        <Box x={20} y={30} w={150} h={48} label="incident" />
+        <Arrow d="M 170 54 L 208 54" />
+        <Box x={210} y={30} w={150} h={48} label="add a rule" />
+        <Arrow d="M 360 54 L 398 54" />
+        <Box x={400} y={30} w={150} h={48} label="file grows" style={S.accent} />
+        <Arrow d="M 550 54 L 588 54" />
+        <Box x={590} y={30} w={112} h={48} label="mid-file rule missed" style={S.accent} />
+        <path d="M 646 78 C 646 118 96 118 96 78" fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeDasharray="5 4" markerEnd="url(#arw)" />
+        <text x={370} y={112} textAnchor="middle" {...S.small}>and the next incident adds another rule</text>
+
+        <line x1={20} y1={140} x2={702} y2={140} stroke="var(--rule)" />
+        <text x={20} y={162} {...S.small}>The loop is stable and it always feels reasonable: each individual rule was justified by a real failure.</text>
+        <text x={20} y={184} {...S.small}>The break is to route: invariants at the top, detail in topic docs, and delete rules with no incident behind them.</text>
+        <text x={20} y={214} {...S.mono}>A RULE YOU CANNOT POINT AT A FAILURE FOR IS A TAX ON EVERY SESSION</text>
+        <text x={20} y={238} {...S.mono}>AUDIT QUARTERLY · DELETE BEFORE YOU ADD</text>
+      </>
+    ),
+  },
+
+  /* 8. handoff map */
+  handoff: {
+    w: 720,
+    h: 262,
+    node: (
+      <>
+        <Defs />
+        <text x={16} y={20} {...S.mono}>WHAT A SESSION LEAVES BEHIND</text>
+
+        <Box x={16} y={34} w={160} h={44} label="feature_list.json" sub="what is done" />
+        <Box x={16} y={90} w={160} h={44} label="progress.md" sub="what happened" />
+        <Box x={16} y={146} w={160} h={44} label="decision notes" sub="why, not just what" />
+        <Box x={16} y={202} w={160} h={44} label="git checkpoint" sub="exact state" />
+
+        <Arrow d="M 176 56 C 250 56 250 90 300 110" />
+        <Arrow d="M 176 112 C 240 112 250 110 300 114" />
+        <Arrow d="M 176 168 C 240 168 250 130 300 120" />
+        <Arrow d="M 176 224 C 250 224 250 150 300 126" />
+
+        <Box x={304} y={84} w={170} h={70} label="next session" sub="starts on work" style={S.good} />
+        <Arrow d="M 474 119 L 512 119" />
+        <Box x={516} y={84} w={188} h={70} label="no re-exploration" sub="no re-litigating" style={S.good} />
+
+        <text x={16} y={252} {...S.small}>Four artefacts, none of them a chat transcript: the next session reads the repository and nothing else.</text>
+      </>
+    ),
+  },
+
+  /* 9. clean exit flow */
+  exitflow: {
+    w: 720,
+    h: 300,
+    node: (
+      <>
+        <Defs />
+        <Box x={20} y={16} w={140} h={40} label="work done" />
+        <Arrow d="M 160 36 L 196 36" />
+        <Box x={198} y={16} w={120} h={40} label="build passes?" />
+        <Arrow d="M 318 36 L 354 36" label="yes" lx={336} ly={28} />
+        <Box x={356} y={16} w={120} h={40} label="tests pass?" />
+        <Arrow d="M 476 36 L 512 36" label="yes" lx={494} ly={28} />
+        <Box x={514} y={16} w={130} h={40} label="record evidence" />
+
+        <path d="M 258 56 C 258 92 200 92 200 120" fill="none" stroke="var(--accent)" strokeWidth="1.5" markerEnd="url(#arw)" />
+        <path d="M 416 56 C 416 92 360 92 360 120" fill="none" stroke="var(--accent)" strokeWidth="1.5" markerEnd="url(#arw)" />
+        <Box x={264} y={122} w={190} h={40} label="fix before you exit" style={S.accent} />
+        <text x={470} y={104} {...S.small}>a session that ends red is a debt</text>
+
+        <Arrow d="M 579 56 L 579 92" />
+        <Box x={514} y={94} w={130} h={40} label="cleanup temp" />
+        <Arrow d="M 579 134 L 579 170" />
+        <Box x={490} y={172} w={178} h={40} label="cold clone starts?" />
+        <Arrow d="M 668 192 L 700 192" />
+        <text x={676} y={182} {...S.mono}>SHIP</text>
+
+        <line x1={20} y1={236} x2={700} y2={236} stroke="var(--rule)" />
+        <text x={20} y={258} {...S.small}>Six checks, in order. The first two are cheap; the last is the only one that proves the environment survived.</text>
+        <text x={20} y={282} {...S.mono}>RUN IT AS A SCRIPT, NOT AS A CHECKLIST SOMEONE REMEMBERS</text>
+      </>
+    ),
+  },
 };
 
 export const FIGURE_IDS = Object.keys(FIGURES);
