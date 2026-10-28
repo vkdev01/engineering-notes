@@ -11,6 +11,16 @@ export type Segment =
 
 marked.setOptions({ gfm: true, breaks: false });
 
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
+/** Markdown links are raw anchors, so basePath has to be applied here. */
+function withBasePath(html: string): string {
+  if (!BASE) return html;
+  return html.replace(/href="(\/(?!\/)[^"]*)"/g, (m, path) =>
+    path.startsWith(BASE + "/") ? m : `href="${BASE}${path}"`,
+  );
+}
+
 /** Add ids to h2/h3 so the right-hand rail and chat citations can link to them. */
 function withHeadingIds(html: string): string {
   return html.replace(/<h([23])>(.*?)<\/h\1>/g, (_m, level, inner) => {
@@ -52,7 +62,7 @@ export function toSegments(markdown: string): Segment[] {
     const text = buffer.join("\n").trim();
     buffer = [];
     if (!text) return;
-    segments.push({ kind: "html", html: withHeadingIds(marked.parse(text) as string) });
+    segments.push({ kind: "html", html: withBasePath(withHeadingIds(marked.parse(text) as string)) });
   };
 
   for (let i = 0; i < lines.length; i++) {
@@ -79,13 +89,13 @@ export function toSegments(markdown: string): Segment[] {
       } else if (type === "mermaid") {
         segments.push({ kind: "mermaid", code: inner, caption: label });
       } else if (type === "qa") {
-        segments.push({ kind: "qa", question: label ?? "Question", html: marked.parse(inner) as string });
+        segments.push({ kind: "qa", question: label ?? "Question", html: withBasePath(marked.parse(inner) as string) });
       } else if (type === "note" || type === "warn") {
         segments.push({
           kind: "callout",
           variant: type,
           title: label,
-          html: marked.parse(inner) as string,
+          html: withBasePath(marked.parse(inner) as string),
         });
       } else if (type === "pull") {
         segments.push({ kind: "callout", variant: "pull", title: label, html: inner });

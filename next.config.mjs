@@ -14,6 +14,11 @@ const repoName = "engineering-notes";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  env: {
+    // "" locally, "/engineering-notes" on Pages. Markdown links are raw anchors,
+    // so they have to be prefixed by hand rather than by next/link.
+    NEXT_PUBLIC_BASE_PATH: isPages ? `/${repoName}` : "",
+  },
   ...(isPages
     ? {
         output: "export",

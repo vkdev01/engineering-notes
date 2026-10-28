@@ -171,7 +171,7 @@ export default function ChatPanel({ disabled = false }: { disabled?: boolean }) 
                 <div className="sources">
                   <span className="lbl">from</span>
                   {m.sources.map((s) => (
-                    <a key={s.id} href={`/c/${s.course}/${s.slug}#${s.id}`}>
+                    <a key={s.id} href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/c/${s.course}/${s.slug}#${s.id}`}>
                       {s.courseTitle} · §{s.section} {s.heading}
                     </a>
                   ))}
