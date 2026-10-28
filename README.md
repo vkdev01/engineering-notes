@@ -135,11 +135,33 @@ A large serif pull quote.
 
 :::exercise[Exercise 02.1 · Score your own harness]{id="scorecard" labels="Instructions,Tools" scale="4"}
 :::
+
+:::figure[The five subsystems]{id="subsystems" note="optional caption note"}
+:::
+
+:::qa[Why does adding rules to AGENTS.md make the agent worse?]
+The answer, rendered as a collapsible row. Good for interview drills.
+:::
 ```
 
 Anything else is normal GitHub-flavoured markdown: headings, tables, lists, code fences,
-links, blockquotes. `##` headings are automatically given ids and listed in the right-hand
-"On this page" rail.
+links, blockquotes. `##` headings are automatically given ids and listed in the sidebar under
+the active section.
+
+### Figures
+
+`:::figure` mounts a hand-drawn SVG from `components/figures/Figures.tsx`. They inherit the
+colour scheme through CSS variables, so a new scheme needs no diagram work. Registered ids:
+
+`subsystems` · `timeline` · `budget` · `layers` · `loopgraph`
+
+To add one: write a component in that file and add it to the `FIGURES` map.
+
+### Q&A blocks
+
+`:::qa` renders a collapsible question with its answer — used for the interview drills in
+§14, and handy for any "check yourself" content where the answer should not be visible
+before you think.
 
 ---
 
