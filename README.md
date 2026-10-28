@@ -192,6 +192,24 @@ for anything.
 
 ---
 
+## GitHub Pages (static build)
+
+The repo ships a workflow (`.github/workflows/pages.yml`) that builds a static export and
+publishes it to Pages at `https://<user>.github.io/spec-tutorial-template/`.
+
+```bash
+GITHUB_PAGES=1 NEXT_PUBLIC_STATIC_EXPORT=1 npm run build   # → out/
+```
+
+In Pages mode `next.config.mjs` sets `output: "export"`, `trailingSlash` and a `basePath`
+of `/spec-tutorial-template`, so links and `_next` assets resolve under the project path.
+The workflow moves `app/api` out of the way before exporting, because a route handler
+cannot be exported — the Pages site is the tutorial **without** the chat. `ChatDock` is
+not rendered in this mode and the footer says so.
+
+The chat still works in the normal build (`npm run build && npm start`), which is what you
+deploy to Vercel or any Node host.
+
 ## Deploying
 
 The chat needs a server, so a static host (GitHub Pages, plain S3) will not work — the

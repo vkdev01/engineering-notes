@@ -12,6 +12,8 @@ export function generateMetadata(): Metadata {
   };
 }
 
+const STATIC_EXPORT = process.env.NEXT_PUBLIC_STATIC_EXPORT === "1";
+
 const THEME_SCRIPT = `try{var t=localStorage.getItem('tutorial-theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -36,8 +38,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </>
           ) : null}{" "}
           · content lives in <code>content/*.md</code>
+          {STATIC_EXPORT ? " · static build: the docs chat runs only on a server deployment" : ""}
         </footer>
-        <ChatDock />
+        {STATIC_EXPORT ? null : <ChatDock />}
       </body>
     </html>
   );
