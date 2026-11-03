@@ -1,0 +1,8 @@
+{
+  "order": 4,
+  "title": "LLM Serving",
+  "subtitle": "A chapter-by-chapter companion to the Hands-On LLM Serving and Optimization repository: the notebooks, two complete serving services, three framework labs, and a seven-phase optimisation study. Converted from notes on orca3/llm-model-inference.",
+  "version": "Reference 1.0",
+  "credit": "Hands-On LLM Serving and Optimization (Chi Wang, Peiheng Hu) \u2014 companion code",
+  "creditUrl": "https://github.com/orca3/llm-model-inference"
+}
