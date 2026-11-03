@@ -1,0 +1,7 @@
+{
+  "order": 5,
+  "title": "SLM Decision Models",
+  "subtitle": "Turning small language models into decision systems: the cost matrix, the calibration, the distillation recipe, the tests and the deployment \u2014 with working code and numbers you can reproduce.",
+  "version": "Reference 1.0",
+  "status": "complete"
+}

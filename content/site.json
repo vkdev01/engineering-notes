@@ -1,5 +1,5 @@
 {
   "title": "Engineering Notes",
   "tagline": "A small library of technical references.",
-  "description": "A collection of technical references: harness engineering for coding agents, the operational side of running them, system design, and a companion to the LLM serving repository."
+  "description": "A collection of technical references: harness engineering for coding agents, the operational side of running them, system design, a companion to the LLM serving repository, and SLM decision models \u2014 turning small language models into decision systems you can test, calibrate and ship."
 }
