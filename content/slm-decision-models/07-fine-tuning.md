@@ -154,5 +154,5 @@ out/claims-lora-v3/
 └── manifest.json             # base model + revision, data snapshot, code commit
 ```
 
-Next: [prompt engineering](06-prompt-engineering.html) when you cannot fine-tune, or
-[hybrid systems](07-hybrid-systems.html) when the decision needs more than one model call.
+Next: [prompt engineering](/c/slm-decision-models/08-prompt-engineering) when you cannot fine-tune, or
+[hybrid systems](/c/slm-decision-models/09-hybrid-systems) when the decision needs more than one model call.

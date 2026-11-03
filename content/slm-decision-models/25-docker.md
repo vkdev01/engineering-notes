@@ -122,7 +122,7 @@ concurrency spikes and the tokenizer do not trigger OOM kills.
 
 If that is too large, the biggest lever is not `slim` — it is dropping torch in favour of ONNX Runtime
 (~180 MB), which is also usually 1.3–2× faster on CPU for small models. See
-[edge deployment](edge.html).
+[edge deployment](/c/slm-decision-models/27-edge-devices).
 
 ## Smoke test before you ship the image
 

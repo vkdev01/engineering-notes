@@ -114,7 +114,7 @@ p = {a: v / sum(p.values()) for a, v in p.items()}      # renormalise over the a
 ```
 
 Option B is consistently better calibrated than Option A and costs one forward pass. It is what you should feed into
-the cost-matrix argmax from [chapter 02](02-decision-theory.html). Still calibrate it — see
+the cost-matrix argmax from [chapter 02](/c/slm-decision-models/04-decision-theory). Still calibrate it — see
 [metrics](/c/slm-decision-models/29-metrics).
 
 ## Prompt version control

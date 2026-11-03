@@ -158,5 +158,5 @@ Reference points from published distillation work and typical practitioner repor
 1. **Distil** — 3 epochs, T = 4, α = 0.3, LR 5e-5 with linear decay, batch 32. Stop on validation agreement, not train loss.
 1. **Calibrate** — fit temperature on a held-out slice (see [metrics](/c/slm-decision-models/29-metrics)). Distilled students inherit the teacher's over-confidence, sometimes amplified.
 
-Continue to [fine-tuning](05-finetuning.html) when you have real labels rather than teacher labels, or
+Continue to [fine-tuning](/c/slm-decision-models/07-fine-tuning) when you have real labels rather than teacher labels, or
 when you need to push past the teacher's ceiling with domain data.

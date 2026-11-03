@@ -129,8 +129,8 @@ The library's `cost_optimal_policy` solves the unconstrained argmax first, then 
 until the rate meets `max_abstain_rate` — the constrained version of the table above.
 
 :::note[Reading next]
-With framing settled, [chapter 03](03-why-slms.html) covers why an SLM is the right engine for this, and
-[chapter 04](04-distillation.html) shows how to get the task behaviour out of a larger teacher.
+With framing settled, [chapter 03](/c/slm-decision-models/05-why-slms) covers why an SLM is the right engine for this, and
+[chapter 04](/c/slm-decision-models/06-distillation) shows how to get the task behaviour out of a larger teacher.
 :::
 
 :::exercise[Exercise 04.1 · Score your cost matrix]{id="scorecard" labels="Actions named,Outcomes named,Every cell filled,Costs defended,Abstain priced" scale="4" unit="matrix"}

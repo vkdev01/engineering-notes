@@ -73,7 +73,7 @@ is the number that decides whether your container fits a 512 MiB edge box.
 
 Empirically the capability cliff sits around tasks that need more than ~3 reasoning hops without tool support.
 Below that, a well-tuned 360M model can match a 7B model on a narrow, well-labelled task — that is the entire
-economic argument for distillation in [chapter 04](04-distillation.html).
+economic argument for distillation in [chapter 04](/c/slm-decision-models/06-distillation).
 
 ## Tokenisation is a decision variable
 
@@ -95,4 +95,4 @@ for s in ["claim denied, resubmit with invoice",
 - Licence permits commercial use (check the model card, not the paper).
 - Tokenizer covers your language and domain vocabulary efficiently.
 - Quantised size fits your smallest deployment target, not your largest.
-- You have a teacher model or ≥ 1k labelled examples — otherwise see prompting in [chapter 06](06-prompt-engineering.html).
+- You have a teacher model or ≥ 1k labelled examples — otherwise see prompting in [chapter 06](/c/slm-decision-models/08-prompt-engineering).

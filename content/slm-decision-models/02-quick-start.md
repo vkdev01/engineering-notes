@@ -135,5 +135,5 @@ retrofit a cost matrix spend months tuning an objective they cannot state.
 
 ## Next
 
-Continue to [SLM fundamentals](01-slm-fundamentals.html) for the architecture and sizing maths, or go
-straight to [distillation](04-distillation.html) if you already have a teacher model in mind.
+Continue to [SLM fundamentals](/c/slm-decision-models/03-slm-fundamentals) for the architecture and sizing maths, or go
+straight to [distillation](/c/slm-decision-models/06-distillation) if you already have a teacher model in mind.
