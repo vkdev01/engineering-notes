@@ -11,7 +11,11 @@ outcomes:
   - "Know which of the three numbers can veto a launch"
 ---
 
-This is the smallest pipeline that is still honest: a baseline you must beat, a calibration step, a cost-derived threshold, a capacity cap, and a report. Everything runs on CPU with numpy. Later sections replace the baseline with a distilled SLM and the synthetic data with your own, and nothing else in this file changes.
+A decision pipeline has five parts, and only one of them is a model. You need something that produces a probability, something that makes that probability honest, a rule that converts it into an action, a constraint that keeps the action volume affordable, and a report that says what the whole thing cost. Teams that build only the first part and then argue about accuracy have skipped four fifths of the system.
+
+The order matters, and it is not the order most projects follow. The cost matrix comes before the model, because it fixes the threshold; calibration comes before the threshold, because an over-confident score puts the threshold in the wrong place; the capacity cap comes after both, because it is a constraint on the answer rather than on the model.
+
+This section builds all five, on CPU, with numpy, in one file. Later sections replace the baseline with a distilled SLM and the synthetic data with yours, and nothing else in the file changes — which is the point of separating the decision layer from the model layer.
 
 ## 2.1 Install
 
@@ -178,7 +182,48 @@ cost policy, raw           7538    0.250      0.614     7538
 cost policy, calibrated     7522    0.250      0.615     7522
 ```
 
-## 2.3 How to read that table
+## 2.3 The threshold is a curve, not a number
+
+Before reading the table, look at what the threshold does to cost across its whole range. This is computed from the same 5,000 cases the pipeline scores:
+
+<svg viewBox="0 0 760 320" role="img" aria-label="The threshold is a business decision, not a default — cheapest here is 0.82" style="width:100%;height:auto;font-family:var(--sans,system-ui);font-size:11px">
+<rect x="0" y="0" width="760" height="320" fill="transparent"/>
+<line x1="62" y1="274.0" x2="610" y2="274.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
+<text x="54" y="278.0" text-anchor="end" fill="var(--dim,#5c6472)">0</text>
+<line x1="62" y1="194.0" x2="610" y2="194.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
+<text x="54" y="198.0" text-anchor="end" fill="var(--dim,#5c6472)">20k</text>
+<line x1="62" y1="114.0" x2="610" y2="114.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
+<text x="54" y="118.0" text-anchor="end" fill="var(--dim,#5c6472)">40k</text>
+<line x1="62" y1="34.0" x2="610" y2="34.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
+<text x="54" y="38.0" text-anchor="end" fill="var(--dim,#5c6472)">60k</text>
+<line x1="62.0" y1="274" x2="62.0" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
+<text x="62.0" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">0.01</text>
+<line x1="171.6" y1="274" x2="171.6" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
+<text x="171.6" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">0.21</text>
+<line x1="281.2" y1="274" x2="281.2" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
+<text x="281.2" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">0.40</text>
+<line x1="390.8" y1="274" x2="390.8" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
+<text x="390.8" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">0.60</text>
+<line x1="500.4" y1="274" x2="500.4" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
+<text x="500.4" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">0.79</text>
+<line x1="610.0" y1="274" x2="610.0" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
+<text x="610.0" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">0.99</text>
+<line x1="62" y1="274" x2="610" y2="274" stroke="var(--rule-2,#c5cbb2)" stroke-width="1.2"/>
+<line x1="62" y1="274" x2="62" y2="34" stroke="var(--rule-2,#c5cbb2)" stroke-width="1.2"/>
+<polyline points="62.0,61.8 67.6,73.7 73.2,81.1 78.8,87.5 84.4,92.5 90.0,97.1 95.6,101.4 101.1,105.6 106.7,109.0 112.3,111.6 117.9,114.4 123.5,117.2 129.1,120.0 134.7,123.1 140.3,125.4 145.9,128.6 151.5,131.5 157.1,134.2 162.7,137.5 168.2,139.4 173.8,141.8 179.4,143.8 185.0,146.5 190.6,149.9 196.2,152.2 201.8,154.3 207.4,156.7 213.0,160.4 218.6,163.2 224.2,165.9 229.8,168.1 235.3,170.9 240.9,173.7 246.5,177.3 252.1,180.2 257.7,182.6 263.3,185.1 268.9,187.5 274.5,189.2 280.1,191.7 285.7,194.4 291.3,196.4 296.9,198.7 302.4,201.2 308.0,202.4 313.6,203.5 319.2,205.2 324.8,207.4 330.4,209.3 336.0,211.2 341.6,212.4 347.2,214.0 352.8,215.7 358.4,217.9 364.0,218.7 369.6,220.1 375.1,221.9 380.7,224.3 386.3,225.7 391.9,227.3 397.5,228.7 403.1,229.7 408.7,231.2 414.3,231.8 419.9,233.1 425.5,233.7 431.1,234.4 436.7,235.4 442.2,235.7 447.8,236.9 453.4,237.3 459.0,238.2 464.6,239.2 470.2,240.4 475.8,240.7 481.4,241.2 487.0,241.4 492.6,241.3 498.2,241.2 503.8,241.5 509.3,241.5 514.9,242.0 520.5,241.6 526.1,241.5 531.7,241.2 537.3,241.0 542.9,241.0 548.5,240.8 554.1,240.8 559.7,240.7 565.3,240.8 570.9,240.4 576.4,239.9 582.0,239.4 587.6,238.4 593.2,237.6 598.8,236.7 604.4,235.3 610.0,233.4" fill="none" stroke="var(--accent,#6d28d9)" stroke-width="2.2"/>
+<polyline points="336.0,242.0 336.0,61.8" fill="none" stroke="var(--dim,#6a7059)" stroke-width="2.2" stroke-dasharray="5 4"/>
+<text x="336" y="312" text-anchor="middle" fill="var(--ink-2,#3a3f2c)">decision threshold on P(good)</text>
+<text x="14" y="154" text-anchor="middle" fill="var(--ink-2,#3a3f2c)" transform="rotate(-90 14 154)">cost per case (INR)</text>
+<text x="62" y="18" fill="var(--ink,#15170f)" font-size="12.5" font-weight="600">The threshold is a business decision, not a default — cheapest here is 0.82</text>
+<line x1="624" y1="42" x2="644" y2="42" stroke="var(--accent,#6d28d9)" stroke-width="2.4"/>
+<text x="650" y="46" fill="var(--ink-2,#3a3f2c)">cost per case</text>
+<line x1="624" y1="62" x2="644" y2="62" stroke="var(--dim,#6a7059)" stroke-width="2.4" stroke-dasharray="5 4"/>
+<text x="650" y="66" fill="var(--ink-2,#3a3f2c)">naive 0.5</text>
+</svg>
+
+The curve is the reason the naive 0.5 rule is expensive and the reason you should not over-tune either: the minimum is broad, so a threshold within a few hundredths of optimal costs almost nothing, while sitting at 0.5 costs multiples of the minimum. Get the cost matrix roughly right and the threshold takes care of itself.
+
+## 2.4 How to read that table
 
 Three things in that output are worth more than the rest of the section.
 
@@ -190,7 +235,7 @@ Three things in that output are worth more than the rest of the section.
 
 The `argmin @ 0.5` row is what an accuracy-first pipeline ships by default: no abstain path, and it pays 120,000 for every bad approval.
 
-## 2.4 What to do when a number looks wrong
+## 2.5 What to do when a number looks wrong
 
 | Reading | Likely cause | Check |
 | --- | --- | --- |
@@ -199,7 +244,7 @@ The `argmin @ 0.5` row is what an accuracy-first pipeline ships by default: no a
 | `accuracy_decided` is very high, cost is high | The policy abstains on the hard cases and eats the review cost | Compare with `MAX_ABSTAIN = 0.5` to see the trade |
 | Regret is a large fraction of cost | Model, not policy, is the bottleneck | Per-class recall on the decided slice |
 
-## 2.5 The verification step
+## 2.6 The verification step
 
 ```python run
 # invariants that must hold before you look at any headline number

@@ -26,6 +26,16 @@ A decision model turns an observation into four artefacts, every time, for every
 | **Abstain path** | Some inputs must not be auto-decided | The model guesses, and the guess is invisible |
 | **Reason + version** | Auditors, debuggers and reviewers need it | Nobody can explain a decision after the fact |
 
+:::mermaid[The loop every decision model runs, and the only place a model appears]
+flowchart LR
+  X[Observation<br/>text, features, log line] --> M[Model<br/>P outcome given input]
+  M --> P[Policy<br/>cost matrix, abstain band, cap]
+  P --> A[Action<br/>closed set]
+  A --> L[Log<br/>action, probability, reason, version]
+  L -.->|every miss becomes a labelled case| D[(Labelled data)]
+  D -.-> M
+:::
+
 The fourth one is the one teams skip and then regret. If you cannot answer "which model, which prompt, which thresholds, and why" for a decision made eight months ago, you do not have a decision model — you have an API call.
 
 ## 1.2 The whole thing, runnable
