@@ -1,10 +1,10 @@
 ---
-section: "20"
-title: "Decision review, operating playbook, and mastery checklist"
+section: "Appendix A"
+title: "Appendix A — decision review and mastery checklist"
 kicker: "Mastery and release readiness"
 abstract: "Turn the course into a defensible model-and-system decision using expected-cost analysis, cost-derived thresholds, abstention, production gates, and a repeatable review process."
 time: "25 min"
-order: 20
+order: 21
 outcomes:
   - "Compare complete architectures using explicit quality, latency, risk, and cost constraints"
   - "Calculate expected operating cost and derive decision thresholds from error costs"
