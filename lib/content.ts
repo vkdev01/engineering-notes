@@ -79,7 +79,8 @@ export function countExercises(body: string): number {
 }
 
 export function getDocs(courseSlug: string): Doc[] {
-  const cached = docCache.get(courseSlug);
+  // In dev, re-read so edits to content/ show up without restarting the server.
+  const cached = process.env.NODE_ENV === "production" ? docCache.get(courseSlug) : undefined;
   if (cached) return cached;
 
   const dir = path.join(CONTENT_DIR, courseSlug);
