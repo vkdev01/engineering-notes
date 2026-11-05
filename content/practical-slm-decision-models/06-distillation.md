@@ -2,295 +2,436 @@
 section: "6"
 title: "Distillation"
 kicker: "Training"
-abstract: "The distillation loss, a complete trainer that runs on CPU in a minute, the label-efficiency numbers it produces, and the diagnostics that tell you which of five things went wrong."
-time: "18 min"
+abstract: "Why a teacher's probability vector teaches more than its label, how temperature exposes that information, the KD loss and its T² factor derived, and a runnable experiment that measures hard versus soft targets across label budgets — then the recipe: generate, filter, train, calibrate."
+time: "35 min"
 order: 6
 outcomes:
-  - "Implement the temperature-scaled distillation loss and train a student"
-  - "Measure the label-efficiency gain on your own data"
-  - "Diagnose a student that memorises, collapses or never learns to abstain"
+  - "Explain, with numbers, why one soft target replaces many sampled hard labels"
+  - "Compute temperature-softened targets and derive why the KD loss is scaled by T²"
+  - "Measure hard-label versus soft-label students across label budgets on your own data"
+  - "Run the practical recipe: teacher data generation, confidence filtering, calibration after distillation"
 ---
 
-A hard label is a very expensive way to teach. It tells the student one bit — this example is class 3 — and says nothing about how close the other classes were. A teacher's distribution says far more: this example is 0.7 class 3, 0.2 class 1, 0.1 class 5, and the reason it is not class 1 is a single feature. That extra structure is the thing a small model cannot recover from one bit per example, and it is why distillation is best understood as a **data-efficiency** technique rather than a compression trick.
+You route 100,000 support tickets a month into four queues: `billing`, `account_access`, `technical`, `orders`. A large model routes them well but costs too much per call ([§5](/c/practical-slm-decision-models/05-why-slms)). You have 500 human-labelled tickets and a million unlabelled ones. Distillation answers: what should the small model learn from — the 500 gold labels, the large model's label on each unlabelled ticket, or the large model's full probability vector? This section measures all three.
 
-The 2019 DistilBERT result — 40% fewer parameters, 60% faster, ~97% of BERT-base's GLUE score — is the cleanest existence proof that the trick works, and nothing in it is specific to BERT.
-
-The intuition to hold onto: the teacher is not transferring answers, it is transferring its *uncertainty*. A student trained on hard labels learns a boundary. A student trained on distributions learns where the boundary is soft, which is exactly the region a decision model cares about — the cases near the threshold where the action could go either way.
-
-## 6.1 The loss
-
-```text
-L = α · CE(y, p_student)  +  (1 − α) · T² · KL( softmax(z_teacher / T) ‖ softmax(z_student / T) )
-```
-
-Two details carry most of the benefit. The `T²` factor keeps gradient magnitudes comparable as you change `T`. And the soft targets carry the teacher's *similarity structure*: "0.7 fraud, 0.2 ambiguous, 0.1 legitimate" is a different case from "0.7 fraud, 0.3 legitimate", even though both argmax to fraud. That extra information per example is what a small student cannot get from hard labels.
-
-:::mermaid[What actually moves from teacher to student]
-flowchart TB
-  D[(Unlabelled inputs<br/>real traffic, hard cases, out-of-scope)] --> T[Teacher<br/>expensive, accurate]
-  T --> S[Soft targets<br/>full distribution per example]
-  D --> H[Hard labels<br/>one bit per example]
-  S --> ST[Student<br/>small, fast]
-  H --> ST
-  ST --> E[Evaluate: accuracy, agreement,<br/>abstain behaviour, calibration]
-  E -.->|where the student disagrees| D
+:::key[First principle]
+A teacher's probability vector is the **expected value** of the label it would emit. Training on the vector instead of a sampled label removes the sampling noise from every gradient step and passes on how close the other classes were — which is exactly the information a decision model needs near its thresholds. Distillation is a **label-efficiency** technique first and a compression technique second.
 :::
 
-The diagram is the data recipe. The teacher never sees your test set, the student never sees the teacher's weights, and the only thing that crosses from big to small is the distribution — which is why the *inputs* you choose to label are the design decision, not the architecture.
+## 6.1 What a soft target carries that a label does not
 
-## 6.2 A complete trainer, in numpy
+Take one ticket — "I was charged twice and now I'm locked out" — and a teacher's logits $z = (4.0,\ 2.5,\ 1.0,\ -1.0)$ over (`billing`, `account_access`, `technical`, `orders`). The softmax gives $p_t = (0.781,\ 0.174,\ 0.039,\ 0.005)$.
 
-Everything below is the whole thing: data, teacher, student, training loop, evaluation. It runs in about a minute on CPU because the student is a linear softmax over 60 features — enough to demonstrate the effect and small enough to read.
+**Bits.** A four-way hard label carries at most $\log_2 4 = 2$ bits, and it carries them about *which class*, nothing about the rest. The soft target fixes three independent log-ratios, $\ln(p_k / p_{\text{billing}})$. As a back-of-envelope figure (not a theorem): if each is meaningful to about ±0.1 nats over a ±5 nat range, that is $\log_2(100) \approx 6.6$ bits each, about 20 bits per example against at most 2. The exact number depends on how trustworthy the teacher's small probabilities are; the order of magnitude is the point.
+
+**Gradient noise — the exact version.** For a softmax student with output $p_s$, the cross-entropy gradient with respect to the logits is $p_s - e_y$ for a hard label $y$, and $p_s - p_t$ for a soft target. If the hard label is a sample from the teacher, $y \sim p_t$, then
+
+$$
+\mathbb{E}_{y \sim p_t}\left[p_s - e_y\right] = p_s - p_t,
+\qquad
+\mathbb{E}\,\big\lVert (p_s - e_y) - (p_s - p_t) \big\rVert^2 = 1 - \sum_k p_{t,k}^2 .
+$$
+
+The soft-target gradient is the hard-label gradient with the noise averaged out. For this ticket the noise variance is \(1 - (0.781^2 + 0.174^2 + 0.039^2 + 0.005^2) = 0.357\); averaging $m$ independently sampled hard labels only shrinks it to \(0.357/m\).
 
 ```python run
-"""Soft targets vs hard labels: the same student, the same data, two losses."""
+"""Soft targets at different temperatures, and what each carries."""
 import numpy as np
 
-N_CLASSES, N_FEATURES = 6, 60
-rng = np.random.default_rng(0)
+QUEUES = ["billing", "account_access", "technical", "orders"]
+z = np.array([4.0, 2.5, 1.0, -1.0])          # teacher logits: "charged twice, now locked out"
 
 
-def make_data(n):
-    """Synthetic features with a class-dependent block, plus 12% label noise."""
-    y = rng.integers(0, N_CLASSES, n)
-    X = rng.normal(0, 1.0, (n, N_FEATURES))
-    for c in range(N_CLASSES):
-        lo, hi = (c * N_FEATURES) // N_CLASSES, ((c + 1) * N_FEATURES) // N_CLASSES
-        X[y == c, lo:hi] += 0.6
-    flip = rng.random(n) < 0.12
-    y[flip] = rng.integers(0, N_CLASSES, flip.sum())
-    return X, y
+def softmax(v, T=1.0):
+    e = np.exp((v - v.max()) / T)
+    return e / e.sum()
 
 
-def teacher_probs(X, temperature=2.0):
-    """A deliberately non-linear teacher: a linear one would be fitted exactly."""
-    z = np.zeros((len(X), N_CLASSES))
-    for c in range(N_CLASSES):
-        lo, hi = (c * N_FEATURES) // N_CLASSES, ((c + 1) * N_FEATURES) // N_CLASSES
-        block = X[:, lo:hi]
-        z[:, c] = 2.5 * np.tanh(1.4 * block.mean(axis=1)) - 0.8 * block.std(axis=1) ** 2
-    z = z / temperature
-    e = np.exp(z - z.max(axis=1, keepdims=True))
-    return e / e.sum(axis=1, keepdims=True)
+def bits(p):
+    p = p[p > 0]
+    return float(-(p * np.log2(p)).sum())
 
 
-def softmax(z):
-    z = z - z.max(axis=1, keepdims=True)
-    e = np.exp(z)
-    return e / e.sum(axis=1, keepdims=True)
+print("%-15s" % "queue" + "".join("%9s" % f"T={T}" for T in (1, 2, 4)))
+for k, q in enumerate(QUEUES):
+    print("%-15s" % q + "".join("%9.3f" % softmax(z, T)[k] for T in (1, 2, 4)))
+print("%-15s" % "entropy (bits)" + "".join("%9.3f" % bits(softmax(z, T)) for T in (1, 2, 4)))
+print("%-15s" % "2nd/1st ratio" + "".join("%9.3f" % (np.sort(softmax(z, T))[-2] / softmax(z, T).max())
+                                          for T in (1, 2, 4)))
 
-
-def train_student(X, targets, soft, epochs=200, lr=0.5, l2=1e-4, T=4.0):
-    """Multinomial logistic regression. soft=True uses the KL term, soft=False plain CE."""
-    n, d = X.shape
-    W, b = np.zeros((d, N_CLASSES)), np.zeros(N_CLASSES)
-    for _ in range(epochs):
-        logits = X @ W + b
-        if soft:
-            # soften the teacher targets, then match the student at the same T
-            t = targets ** (1.0 / T)
-            t = t / t.sum(axis=1, keepdims=True)
-            grad = (softmax(logits / T) - t) * T / n
-        else:
-            grad = (softmax(logits) - np.eye(N_CLASSES)[targets]) / n
-        W -= lr * (X.T @ grad + l2 * W)
-        b -= lr * grad.sum(axis=0)
-    return W, b
-
-
-def accuracy(W, b, X, y):
-    return float((softmax(X @ W + b).argmax(1) == y).mean())
-
-
-def agreement(W, b, X, teacher_p):
-    return float((softmax(X @ W + b).argmax(1) == teacher_p.argmax(1)).mean())
-
-
-X_train, y_train = make_data(8000)
-X_test, y_test = make_data(2000)
-T_train, T_test = teacher_probs(X_train), teacher_probs(X_test)
-
-print("teacher accuracy on test: %.3f" % float((T_test.argmax(1) == y_test).mean()))
-
+# a hard label is one draw from the teacher; its gradient is noisy around the soft one
+p = softmax(z)
+var_hard = 1 - (p ** 2).sum()                # E||onehot(y) - p||^2 with y ~ p
 print()
-print("%8s %10s %10s %8s" % ("n_train", "hard acc", "soft acc", "gap"))
-for n in (100, 250, 500, 1000, 2000, 4000, 8000):
-    Wh, bh = train_student(X_train[:n], y_train[:n], soft=False)
-    Ws, bs = train_student(X_train[:n], T_train[:n], soft=True)
-    a_hard, a_soft = accuracy(Wh, bh, X_test, y_test), accuracy(Ws, bs, X_test, y_test)
-    print("%8d %10.3f %10.3f %8.3f" % (n, a_hard, a_soft, a_soft - a_hard))
-
-Wh, bh = train_student(X_train, y_train, soft=False)
-Ws, bs = train_student(X_train, T_train, soft=True)
-print()
-print("at n=8000  hard: acc %.3f agreement %.3f" % (accuracy(Wh, bh, X_test, y_test),
-                                                    agreement(Wh, bh, X_test, T_test)))
-print("at n=8000  soft: acc %.3f agreement %.3f" % (accuracy(Ws, bs, X_test, y_test),
-                                                    agreement(Ws, bs, X_test, T_test)))
+print("max information in a 4-way hard label: %.3f bits" % np.log2(len(QUEUES)))
+print("gradient variance of one hard label vs its soft target: %.3f (soft: 0)" % var_hard)
+for n in (1, 4, 16):
+    print("  averaging %2d sampled hard labels leaves variance %.3f" % (n, var_hard / n))
 ```
 
-```text
-teacher accuracy on test: 0.621
+```output
+queue                T=1      T=2      T=4
+billing            0.781    0.563    0.409
+account_access     0.174    0.266    0.281
+technical          0.039    0.126    0.193
+orders             0.005    0.046    0.117
+entropy (bits)     0.939    1.556    1.863
+2nd/1st ratio      0.223    0.472    0.687
 
- n_train   hard acc   soft acc      gap
-     100      0.399      0.604    0.205
-     250      0.487      0.648    0.161
-     500      0.522      0.658    0.136
-    1000      0.576      0.659    0.084
-    2000      0.614      0.664    0.050
-    4000      0.640      0.662    0.022
-    8000      0.650      0.660    0.010
-
-at n=8000  hard: acc 0.650 agreement 0.823
-at n=8000  soft: acc 0.660 agreement 0.836
+max information in a 4-way hard label: 2.000 bits
+gradient variance of one hard label vs its soft target: 0.357 (soft: 0)
+  averaging  1 sampled hard labels leaves variance 0.357
+  averaging  4 sampled hard labels leaves variance 0.089
+  averaging 16 sampled hard labels leaves variance 0.022
 ```
 
-## 6.3 Reading the curve
+:::example[Worked example · what the vector says about this ticket]
+The label says `billing`. The vector says `billing` at 0.781 **and** `account_access` at 0.174 — 4.5× more plausible than `technical` (0.039) and 33× more than `orders` (0.005; the exact ratio is $e^{3.5}$). A student trained on the vector learns that "charged twice" tickets sit near the billing/account boundary, which is where a routing policy needs a review band. A student trained on the label learns only that this point is billing.
+:::
 
-The gap is largest where data is scarce and closes as data grows — that is the signature of a *data-efficiency* technique, not a compression trick. Two practical consequences:
+## 6.2 Temperature: making small probabilities visible
 
-- **Distillation is worth most when labels are expensive.** If you have 50k gold labels, a hard-label student is close behind and much simpler.
-- **Agreement plateaus below 1.0.** The student learns the teacher's decision boundary, not its exact distribution. If you need the probabilities, calibrate the student afterwards (§2) rather than expecting distillation to preserve them.
+At $T = 1$ the teacher's small probabilities are tiny (0.005 for `orders`); their contribution to a cross-entropy loss is tiny too. Dividing the logits by a temperature $T > 1$ before the softmax flattens the distribution without changing its ranking:
 
-## 6.4 The curve that justifies the technique
+$$
+q_k(T) = \frac{\exp(z_k / T)}{\sum_j \exp(z_j / T)},
+\qquad
+\frac{q_j(T)}{q_k(T)} = \exp\!\left(\frac{z_j - z_k}{T}\right).
+$$
 
-<svg viewBox="0 0 760 320" role="img" aria-label="The soft-target advantage is a data-efficiency effect, and it closes as n grows" style="width:100%;height:auto;font-family:var(--sans,system-ui);font-size:11px">
-<rect x="0" y="0" width="760" height="320" fill="transparent"/>
-<line x1="62" y1="274.0" x2="610" y2="274.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
-<text x="54" y="278.0" text-anchor="end" fill="var(--dim,#5c6472)">0.20</text>
-<line x1="62" y1="234.0" x2="610" y2="234.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
-<text x="54" y="238.0" text-anchor="end" fill="var(--dim,#5c6472)">0.30</text>
-<line x1="62" y1="194.0" x2="610" y2="194.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
-<text x="54" y="198.0" text-anchor="end" fill="var(--dim,#5c6472)">0.40</text>
-<line x1="62" y1="154.0" x2="610" y2="154.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
-<text x="54" y="158.0" text-anchor="end" fill="var(--dim,#5c6472)">0.50</text>
-<line x1="62" y1="114.0" x2="610" y2="114.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
-<text x="54" y="118.0" text-anchor="end" fill="var(--dim,#5c6472)">0.60</text>
-<line x1="62" y1="74.0" x2="610" y2="74.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
-<text x="54" y="78.0" text-anchor="end" fill="var(--dim,#5c6472)">0.70</text>
-<line x1="62" y1="34.0" x2="610" y2="34.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
-<text x="54" y="38.0" text-anchor="end" fill="var(--dim,#5c6472)">0.80</text>
-<line x1="62.0" y1="274" x2="62.0" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
-<text x="62.0" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">100</text>
-<line x1="153.3" y1="274" x2="153.3" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
-<text x="153.3" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">1417</text>
-<line x1="244.7" y1="274" x2="244.7" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
-<text x="244.7" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">2733</text>
-<line x1="336.0" y1="274" x2="336.0" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
-<text x="336.0" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">4050</text>
-<line x1="427.3" y1="274" x2="427.3" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
-<text x="427.3" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">5367</text>
-<line x1="518.7" y1="274" x2="518.7" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
-<text x="518.7" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">6683</text>
-<line x1="610.0" y1="274" x2="610.0" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
-<text x="610.0" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">8000</text>
-<line x1="62" y1="274" x2="610" y2="274" stroke="var(--rule-2,#c5cbb2)" stroke-width="1.2"/>
-<line x1="62" y1="274" x2="62" y2="34" stroke="var(--rule-2,#c5cbb2)" stroke-width="1.2"/>
-<polyline points="62.0,112.4 72.4,94.8 89.7,90.8 124.4,90.4 193.8,88.4 332.5,89.2 610.0,90.0" fill="none" stroke="var(--accent,#6d28d9)" stroke-width="2.2"/>
-<polyline points="62.0,194.4 72.4,159.2 89.7,145.2 124.4,123.6 193.8,108.4 332.5,98.0 610.0,94.0" fill="none" stroke="var(--dim,#6a7059)" stroke-width="2.2" stroke-dasharray="5 4"/>
-<text x="336" y="312" text-anchor="middle" fill="var(--ink-2,#3a3f2c)">training examples (n)</text>
-<text x="14" y="154" text-anchor="middle" fill="var(--ink-2,#3a3f2c)" transform="rotate(-90 14 154)">test accuracy</text>
-<text x="62" y="18" fill="var(--ink,#15170f)" font-size="12.5" font-weight="600">The soft-target advantage is a data-efficiency effect, and it closes as n grows</text>
-<line x1="624" y1="42" x2="644" y2="42" stroke="var(--accent,#6d28d9)" stroke-width="2.4"/>
-<text x="650" y="46" fill="var(--ink-2,#3a3f2c)">soft targets</text>
-<line x1="624" y1="62" x2="644" y2="62" stroke="var(--dim,#6a7059)" stroke-width="2.4" stroke-dasharray="5 4"/>
-<text x="650" y="66" fill="var(--ink-2,#3a3f2c)">hard labels</text>
-</svg>
+Every ratio between two classes is the $T=1$ ratio raised to the power \(1/T\). At $T = 4$ the `account_access`/`billing` ratio goes from 0.223 to \(0.223^{1/4} = 0.687\), and entropy rises from 0.94 to 1.86 bits (the maximum for four classes is 2).
 
-Read the gap, not the level. At 100 examples the two students are 20 points apart; at 8,000 they are within a point. That shape is the signature of a technique that buys *label efficiency*: it matters enormously when labels are expensive and barely at all when you have 50,000 of them. If you already have 50k gold labels, a hard-label student is within noise and much simpler to debug.
+:::chart[One ticket's teacher distribution at three temperatures]{type="bar" y="probability" yfmt="dec2" labels="true"}
+queue, T=1, T=2, T=4
+billing, 0.781, 0.563, 0.409
+account_access, 0.174, 0.266, 0.281
+technical, 0.039, 0.126, 0.193
+orders, 0.005, 0.046, 0.117
+:::
 
-The plateau is equally important. Neither student reaches the teacher's accuracy — the teacher here is deliberately non-linear, so a linear student cannot match it. Expect the same in your own work: the student learns the teacher's *boundary*, not its function, and the ceiling is set by the teacher's own error rate plus the gap your student's capacity leaves.
+Temperature is applied **identically** to teacher and student during training and removed ($T = 1$) at inference. It changes what the loss pays attention to, not what the student predicts.
 
-## 6.5 The same loss in torch
+## 6.3 The distillation loss and the T² factor
 
-The numpy trainer above is a teaching device. For a real student, this is the step function — complete, and the only part of a training loop that differs from ordinary fine-tuning:
+With student logits $z_s$, teacher logits $z_t$, gold label $y$ (if you have one), weight $\alpha \in [0, 1]$ and temperature $T$:
 
+$$
+\mathcal{L} = \alpha\, \mathrm{CE}\big(y,\ \sigma(z_s)\big) + (1-\alpha)\, T^2\, \mathrm{KL}\Big(\sigma(z_t / T)\ \big\Vert\ \sigma(z_s / T)\Big)
+$$
+
+where $\sigma$ is the softmax. The KL term and $\mathrm{CE}(\sigma(z_t/T), \sigma(z_s/T))$ differ by the teacher's entropy, which does not depend on the student, so they have the same gradient.
+
+**Why $T^2$.** Write $q_s = \sigma(z_s/T)$ and $q_t = \sigma(z_t/T)$. The chain rule through $z_s/T$ gives
+
+$$
+\frac{\partial\, \mathrm{KL}(q_t \Vert q_s)}{\partial z_{s,k}} = \frac{1}{T}\,\big(q_{s,k} - q_{t,k}\big).
+$$
+
+For large $T$, $\exp(z/T) \approx 1 + z/T$, so with logits centred to zero mean $q_k \approx \frac{1}{K} + \frac{z_k}{K\,T}$ and
+
+$$
+\frac{\partial\, \mathrm{KL}}{\partial z_{s,k}} \approx \frac{1}{T}\cdot\frac{z_{s,k} - z_{t,k}}{K\,T} = \frac{z_{s,k} - z_{t,k}}{K\,T^2}.
+$$
+
+The soft-target gradient shrinks as \(1/T^2\). Multiplying the term by $T^2$ makes its gradient $\approx (z_{s,k} - z_{t,k})/K$, independent of $T$ — so you can change $T$ without silently re-weighting it against the hard-label term, and $\alpha$ keeps its meaning. The same limit shows what high-temperature distillation becomes: squared-error matching of centred logits.
+
+:::details[The same loss in torch — the only part of a training loop that differs from fine-tuning]
 ```python
 import torch
 import torch.nn.functional as F
 
 
-def distill_step(student, teacher, batch, T=4.0, alpha=0.3):
-    """One optimisation step. Returns the scalar loss."""
-    input_ids = batch["input_ids"]
-    attention_mask = batch["attention_mask"]
-    labels = batch["labels"]
-
-    with torch.no_grad():
-        t_logits = teacher(input_ids=input_ids, attention_mask=attention_mask).logits
-    s_logits = student(input_ids=input_ids, attention_mask=attention_mask).logits
-
-    hard = F.cross_entropy(s_logits, labels)
-    soft = F.kl_div(
-        F.log_softmax(s_logits / T, dim=-1),
-        F.softmax(t_logits / T, dim=-1),
-        reduction="batchmean",
-    ) * (T ** 2)
-    return alpha * hard + (1 - alpha) * soft
+def distill_loss(s_logits, t_logits, labels=None, T=2.0, alpha=0.3):
+    """alpha * CE(gold) + (1 - alpha) * T^2 * KL(teacher_T || student_T)."""
+    soft = F.kl_div(F.log_softmax(s_logits / T, dim=-1),
+                    F.softmax(t_logits / T, dim=-1),
+                    reduction="batchmean") * T ** 2
+    if labels is None:                       # no gold labels: pure distillation
+        return soft
+    return alpha * F.cross_entropy(s_logits, labels) + (1 - alpha) * soft
 
 
-def train_epoch(student, teacher, loader, optimiser, T=4.0, alpha=0.3, grad_clip=1.0):
+def train_epoch(student, loader, optimiser, T=2.0, alpha=0.3, grad_clip=1.0):
+    """loader yields input_ids, attention_mask, pre-computed teacher_logits, optional labels."""
     student.train()
-    total, seen = 0.0, 0
     for batch in loader:
-        loss = distill_step(student, teacher, batch, T=T, alpha=alpha)
+        s_logits = student(input_ids=batch["input_ids"],
+                           attention_mask=batch["attention_mask"]).logits
+        loss = distill_loss(s_logits, batch["teacher_logits"], batch.get("labels"), T, alpha)
         optimiser.zero_grad(set_to_none=True)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(student.parameters(), grad_clip)
         optimiser.step()
-        total += float(loss) * len(batch["labels"])
-        seen += len(batch["labels"])
-    return total / max(seen, 1)
 ```
-
-:::note[Note 6.1.a — pre-compute the teacher]
-Teacher inference is the expensive part of distillation. Run it once over the whole dataset, store the distributions as float16 (a 20-class problem costs 40 bytes per example), then train the student as many times as you like without touching the teacher. This turns a three-hour loop into a three-minute one, and it is the single highest-leverage engineering decision in this section.
+`F.kl_div` takes the student's **log**-probabilities as input and the teacher's probabilities as target; swapping them is the most common silent bug.
 :::
 
-## 6.6 Data mix
+## 6.4 The experiment: hard labels versus soft targets across label budgets
 
-The input distribution decides whether the student generalises. A mix that works:
+The setup isolates the three things a student can learn from, on the same inputs:
 
-| Slice | Share | Why |
-| --- | --- | --- |
-| Real production inputs | 50% | The distribution you are actually scored on |
-| Hard / ambiguous cases near the threshold | 20% | Where the decisions are actually made |
-| Synthetic edge cases from templates | 15% | Coverage for rare-but-expensive inputs |
-| Adversarial or malformed inputs | 10% | Teaches the abstain behaviour |
-| Out-of-scope inputs that must abstain | 5% | Without these the student never learns to refuse |
+- **gold hard** — human labels, with 10% of them random (realistic annotation noise);
+- **teacher hard** — the teacher's argmax on each input;
+- **teacher soft** — the teacher's full probability vector.
 
-Sizes: 5k–20k teacher-labelled examples for a single closed task; 50k+ above ~20 classes or heavy imbalance. Below ~2k, prompting beats distillation — see §8.
-
-## 6.7 Diagnosing a student
-
-| Symptom | Cause | Fix |
-| --- | --- | --- |
-| Matches teacher on train, collapses on val | Input distribution too narrow | Add production and hard-case slices |
-| Uniformly 5–10 points worse | `T` too low, targets near one-hot | Raise `T` to 4–8; check the teacher is not one-hot |
-| Majority class fine, rare class at zero | Imbalance in the soft targets | Class-weighted CE term, or oversample |
-| Confident and wrong on odd inputs | No out-of-scope slice | Add the 5% OOS slice and an abstain class |
-| Ceiling well below expectation | The teacher itself is wrong that often | You cannot distil past it — fix labels or accept the ceiling |
-
-## 6.8 The check
+The teacher is a 2-layer MLP trained on its own 15,000 gold-labelled examples. The student is softmax regression on 90 quadratic features — deliberately smaller in capacity, so it cannot copy the teacher exactly. Each budget $n$ is averaged over 5 random subsets; accuracy is against gold test labels, agreement is with the teacher's argmax.
 
 ```python run
-# what must be true before you call a distillation run successful
-best_n = 8000
-Wh, bh = train_student(X_train[:best_n], y_train[:best_n], soft=False)
-Ws, bs = train_student(X_train[:best_n], T_train[:best_n], soft=True)
+"""Hard labels vs teacher soft targets: same student, same inputs, growing label budget."""
+import numpy as np
+from sklearn.datasets import make_classification
+from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
-assert accuracy(Ws, bs, X_test, y_test) >= accuracy(Wh, bh, X_test, y_test) - 0.01, \
-    "soft targets should never be materially worse at equal n"
-assert agreement(Ws, bs, X_test, T_test) > 0.75, "student does not resemble the teacher"
-assert 0.0 <= agreement(Ws, bs, X_test, T_test) <= 1.0
+K = 4                                                     # four ticket queues
+X, y = make_classification(n_samples=40_000, n_features=12, n_informative=8, n_redundant=2,
+                           n_classes=K, n_clusters_per_class=2, class_sep=1.0, flip_y=0.10,
+                           random_state=0)               # flip_y: 10% of gold labels are random
+Xt, yt = X[:15_000], y[:15_000]                           # the teacher's own training set
+Xp, yp = X[15_000:30_000], y[15_000:30_000]               # student pool
+Xe, ye = X[30_000:], y[30_000:]                           # test set
 
-# and the thing that actually matters for a decision model: the abstain behaviour
-# (a student with no out-of-scope slice will not have one - see the data mix)
-print("hard %.3f | soft %.3f | agreement %.3f" % (accuracy(Wh, bh, X_test, y_test),
-                                                  accuracy(Ws, bs, X_test, y_test),
-                                                  agreement(Ws, bs, X_test, T_test)))
+teacher = MLPClassifier((128, 64), max_iter=300, early_stopping=True, random_state=0).fit(Xt, yt)
+t_pool, t_test = teacher.predict_proba(Xp), teacher.predict_proba(Xe)
+print("teacher test accuracy %.3f" % (t_test.argmax(1) == ye).mean())
+
+feats = PolynomialFeatures(2, include_bias=False)        # student: linear on 90 quadratic features
+scale = StandardScaler().fit(feats.fit_transform(Xp))
+Fp, Fe = (scale.transform(feats.transform(A)) for A in (Xp, Xe))
+
+
+def softmax(z):
+    e = np.exp(z - z.max(1, keepdims=True))
+    return e / e.sum(1, keepdims=True)
+
+
+def fit(Fx, target, T=1.0, steps=400, lr=0.3, l2=1e-3):
+    """Softmax regression trained on T^2 * CE(target_T, student_T); returns weights."""
+    q = softmax(np.log(np.clip(target, 1e-9, 1)) / T)    # soften the target at the same T
+    W = np.zeros((Fx.shape[1], K))
+    for _ in range(steps):
+        g = T * (softmax(Fx @ W / T) - q) / len(Fx)       # d(T^2 * CE)/dz
+        W -= lr * (Fx.T @ g + l2 * W)
+    return W
+
+
+def run(n, seeds=5):
+    """Mean test accuracy and teacher agreement for the three kinds of target."""
+    res = {"gold hard": [], "teacher hard": [], "teacher soft": []}
+    for seed in range(seeds):
+        i = np.random.default_rng(seed).permutation(len(Fp))[:n]
+        tgts = {"gold hard": np.eye(K)[yp[i]], "teacher hard": np.eye(K)[t_pool[i].argmax(1)],
+                "teacher soft": t_pool[i]}
+        for name, tgt in tgts.items():
+            pred = (Fe @ fit(Fp[i], tgt)).argmax(1)
+            res[name].append(((pred == ye).mean(), (pred == t_test.argmax(1)).mean()))
+    return {k: np.mean(v, axis=0) for k, v in res.items()}
+
+
+print("%6s %10s %13s %13s %12s %12s" % ("n", "gold hard", "teacher hard", "teacher soft",
+                                         "agree hard", "agree soft"))
+for n in (50, 100, 200, 500, 1000, 2000, 5000, 15000):
+    r = run(n)
+    print("%6d %10.3f %13.3f %13.3f %12.3f %12.3f" % (n, r["gold hard"][0], r["teacher hard"][0],
+          r["teacher soft"][0], r["teacher hard"][1], r["teacher soft"][1]))
 ```
 
-```text
-hard 0.650 | soft 0.660 | agreement 0.836
+```output
+teacher test accuracy 0.867
+     n  gold hard  teacher hard  teacher soft   agree hard   agree soft
+    50      0.499         0.575         0.597        0.617        0.647
+   100      0.545         0.628         0.657        0.681        0.718
+   200      0.619         0.693         0.717        0.755        0.786
+   500      0.705         0.761         0.779        0.837        0.859
+  1000      0.752         0.786         0.795        0.866        0.878
+  2000      0.781         0.797         0.803        0.881        0.888
+  5000      0.798         0.806         0.807        0.892        0.893
+ 15000      0.805         0.810         0.811        0.897        0.897
 ```
+
+:::chart[Student test accuracy vs number of labelled examples]{type="line" x="labelled training examples" y="test accuracy" xlog="true" yfmt="pct" ymin="0.45" ymax="0.9" hmarks="0.867:teacher" dash="gold hard"}
+n, gold hard, teacher hard, teacher soft
+50, 0.499, 0.575, 0.597
+100, 0.545, 0.628, 0.657
+200, 0.619, 0.693, 0.717
+500, 0.705, 0.761, 0.779
+1000, 0.752, 0.786, 0.795
+2000, 0.781, 0.797, 0.803
+5000, 0.798, 0.806, 0.807
+15000, 0.805, 0.810, 0.811
+:::
+
+:::chart[Student agreement with the teacher's decision]{type="line" x="labelled training examples" y="agreement with teacher argmax" xlog="true" yfmt="pct" ymin="0.55" ymax="0.95"}
+n, teacher hard, teacher soft
+50, 0.617, 0.647
+100, 0.681, 0.718
+200, 0.755, 0.786
+500, 0.837, 0.859
+1000, 0.866, 0.878
+2000, 0.881, 0.888
+5000, 0.892, 0.893
+15000, 0.897, 0.897
+:::
+
+## 6.5 Reading the curves
+
+**Soft beats hard at the same budget, and the gap closes.** Soft targets add 2.2–2.9 points of accuracy at $n \le 200$, 1.8 at 500, 0.9 at 1,000 and nothing measurable from 5,000 up. Interpolating the teacher-hard curve in $\log n$, the soft student at $n = 100$ matches a hard student trained on about 136 examples, and at $n = 500$ one trained on about 820 — soft targets are worth roughly 1.4–1.6× as many labels in this range.
+
+**Cleaner labels matter more than softer ones here.** The jump from gold-hard to teacher-hard (8.3 points at $n = 100$) is about three times the jump from teacher-hard to teacher-soft (2.9). The gold labels carry 10% random noise; the teacher, trained on 15,000 of them, has averaged most of it away. In your data the ratio depends on how noisy your annotation is — measure both gaps.
+
+**Nobody reaches the teacher.** The best student sits at 81.1% against the teacher's 86.7% and agrees with it 89.7% of the time. The ceiling is set by the student's capacity, not by the loss. Distillation moves you along the curve faster; it does not raise the curve.
+
+**The budget that matters is teacher calls on unlabelled inputs.** With 500 gold labels the best you can do is 70.5%. With 15,000 unlabelled tickets labelled by a teacher, the same student reaches 81.1%. That — not the soft/hard gap — is the main economic argument for distillation.
+
+## 6.6 Temperature, filtering and calibration on the same data
+
+The next block continues from the one above (it reuses `fit`, `Fp`, `t_pool` and friends).
+
+```python run
+"""Continues from the block above: temperature, confidence filtering, calibration."""
+from sklearn.isotonic import IsotonicRegression
+
+
+def acc_agree(W):
+    pred = (Fe @ W).argmax(1)
+    return (pred == ye).mean(), (pred == t_test.argmax(1)).mean()
+
+
+print("temperature sweep at n=200 (mean of 5 subsets): accuracy / agreement")
+for T in (1.0, 2.0, 4.0, 8.0):
+    r = np.mean([acc_agree(fit(Fp[i], t_pool[i], T=T)) for i in
+                 (np.random.default_rng(s).permutation(len(Fp))[:200] for s in range(5))], axis=0)
+    print("  T=%-3g %.3f / %.3f" % (T, *r))
+
+print("\nfilter the 15k teacher-labelled pool by teacher confidence")
+conf = t_pool.max(1)
+for tau in (0.0, 0.5, 0.7, 0.9):
+    keep = conf >= tau
+    hard = acc_agree(fit(Fp[keep], np.eye(K)[t_pool[keep].argmax(1)]))[0]
+    soft = acc_agree(fit(Fp[keep], t_pool[keep]))[0]
+    print("  tau=%.1f keeps %5.1f%%  hard acc %.3f  soft acc %.3f" % (tau, 100 * keep.mean(), hard, soft))
+
+
+def ece(conf, correct, bins=10):
+    """Top-label expected calibration error."""
+    idx = np.minimum((conf * bins).astype(int), bins - 1)
+    return sum(abs(correct[idx == b].mean() - conf[idx == b].mean()) * (idx == b).mean()
+               for b in range(bins) if (idx == b).any())
+
+
+def nll(p, y):
+    return -np.log(np.clip(p[np.arange(len(y)), y], 1e-12, 1)).mean()
+
+
+W = fit(Fp[:2000], t_pool[:2000])                        # a distilled student
+val, val_y = Fp[2000:3000], yp[2000:3000]                # 1,000 gold labels held out for calibration
+temps = np.linspace(0.5, 3.0, 51)
+T_star = temps[np.argmin([nll(softmax(val @ W / t), val_y) for t in temps])]
+p_val, p_test = softmax(val @ W), softmax(Fe @ W)
+iso = IsotonicRegression(out_of_bounds="clip").fit(p_val.max(1), p_val.argmax(1) == val_y)
+
+print("\ncalibration against gold labels (test set)")
+for name, p in (("teacher", t_test), ("student", p_test), ("student, T=%.2f" % T_star,
+                                                            softmax(Fe @ W / T_star))):
+    print("  %-22s ECE %.3f  NLL %.3f" % (name, ece(p.max(1), p.argmax(1) == ye), nll(p, ye)))
+print("  %-22s ECE %.3f" % ("student, isotonic top", ece(iso.predict(p_test.max(1)),
+                                                        p_test.argmax(1) == ye)))
+```
+
+```output
+temperature sweep at n=200 (mean of 5 subsets): accuracy / agreement
+  T=1   0.717 / 0.786
+  T=2   0.712 / 0.780
+  T=4   0.705 / 0.773
+  T=8   0.701 / 0.769
+
+filter the 15k teacher-labelled pool by teacher confidence
+  tau=0.0 keeps 100.0%  hard acc 0.810  soft acc 0.811
+  tau=0.5 keeps  96.0%  hard acc 0.809  soft acc 0.811
+  tau=0.7 keeps  83.0%  hard acc 0.807  soft acc 0.808
+  tau=0.9 keeps  48.8%  hard acc 0.797  soft acc 0.800
+
+calibration against gold labels (test set)
+  teacher                ECE 0.055  NLL 0.513
+  student                ECE 0.081  NLL 0.676
+  student, T=1.10        ECE 0.096  NLL 0.676
+  student, isotonic top  ECE 0.021
+```
+
+Three results, each against a common assumption:
+
+**Higher temperature did not help this student.** Accuracy fell monotonically from 71.7% at $T = 1$ to 70.1% at $T = 8$. High $T$ asks the student to match the teacher's smallest logits too; a low-capacity student spends capacity on them that it needs for the boundary. Treat $T$ as a hyperparameter to sweep on a validation slice (1, 2, 4 is enough), not a constant to copy from a paper.
+
+**Confidence filtering cost accuracy.** Keeping only examples where the teacher is ≥ 0.9 confident threw away 51% of the pool and lost 1.1 points (81.1% → 80.0%). The discarded examples are the boundary cases — the ones that teach where the boundary is. Filter only when low-confidence teacher outputs are measurably *worse* than their confidence says (check on a gold sample), or are malformed; route them to human labelling rather than dropping them.
+
+**Distillation copies the teacher's miscalibration, and one temperature cannot fix it.** The student's reliability curve bends both ways, so the NLL-optimal temperature is $T = 1.10$, NLL does not move (0.676), and ECE gets *worse* (0.081 → 0.096). An isotonic map on the top-label confidence, fitted on 1,000 held-out gold labels, cuts ECE to 0.021.
+
+:::chart[Reliability of the distilled student (bins of 0.1, labelled by midpoint)]{type="line" x="predicted confidence" y="observed accuracy" diag="true" xmin="0.4" xmax="1" ymin="0.4" ymax="1" xfmt="dec2" yfmt="dec2"}
+confidence, raw student, after isotonic
+0.45, 0.596, 0.511
+0.55, 0.658, 0.610
+0.65, 0.781, 0.675
+0.75, 0.841, 0.822
+0.85, 0.881, 0.868
+0.95, 0.911, 0.914
+:::
+
+The raw student is **underconfident** between 0.4 and 0.8 (it says 0.55, it is right 66% of the time) and **overconfident** above 0.9 (says 0.96, right 91%). A temperature stretches or squeezes all confidences in one direction, so it cannot fix both. For a decision model this matters directly: every threshold in [§4](/c/practical-slm-decision-models/04-decision-theory) assumes the probabilities are calibrated. Calibration methods and their checks are in [§7](/c/practical-slm-decision-models/07-probabilities-and-calibration).
+
+## 6.7 The practical recipe
+
+```mermaid
+flowchart LR
+  U[Unlabelled inputs: traffic, near-threshold, out-of-scope] --> T[Teacher pass once: store probabilities]
+  T --> F{Valid output and teacher reliable here?}
+  F -->|no| H[Human labelling queue]
+  F -->|yes| S[Train student: KD loss, sweep T and alpha]
+  H --> S
+  S --> C[Calibrate on held-out gold labels]
+  C --> G[Gate: accuracy, agreement, ECE, cost regret]
+  G -.->|disagreements and drift| U
+```
+
+1. **Collect inputs, not labels.** Sample real traffic, then over-sample the cases near your decision thresholds and add out-of-scope inputs the student must learn to send to review. The inputs you choose are the design decision; the student only ever sees what the teacher labelled.
+2. **Run the teacher once and store the distribution.** Four queues in float16 cost 8 bytes per example — 8 MB for a million tickets. Train the student as many times as you like without paying for the teacher again.
+3. **Get a distribution even from a generative teacher.** If the teacher is an LLM API, use the log-probabilities of the label tokens when they are exposed. Otherwise sample it $m$ times and use the empirical frequencies: from §6.1, that leaves gradient variance \(0.357/m\) for the example ticket — 16 samples reach 0.022, at 16× the teacher cost. Decide $m$ with the cost numbers in §5.
+4. **Filter on validity, not on confidence.** Drop unparseable or out-of-schema teacher outputs. Do not drop low-confidence ones by default (§6.6 lost 1.1 points doing so); send them to humans if the teacher is unreliable there.
+5. **Hold back gold labels for evaluation and calibration.** Even 1,000 is enough to fit an isotonic calibrator and to check that the student is not just faithfully copying teacher errors. Never evaluate the student only against the teacher.
+6. **Sweep $T \in \{1, 2, 4\}$ and $\alpha \in \{0, 0.3, 0.5\}$** on a validation slice. Use $\alpha > 0$ only when you have gold labels for the training inputs.
+7. **Calibrate after distillation, then re-derive the thresholds** from the cost matrix. Gate the release on cost regret, not accuracy alone.
+
+:::warn[Diagnosing a student]
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| Good agreement on train, collapses on validation | Input distribution too narrow | Add real traffic and near-threshold slices |
+| Agreement plateaus well below 1 | Student capacity ceiling (§6.5: 89.7%) | Larger student, or accept and measure the cost |
+| Higher $T$ makes it worse | Small student spending capacity on tiny logits | Lower $T$; sweep 1, 2, 4 |
+| Rare queue near zero recall | Teacher probabilities inherit class imbalance | Over-sample rare-class inputs before the teacher pass |
+| Confident and wrong on odd inputs | No out-of-scope inputs in the teacher pass | Add them, with a review/abstain target |
+| Probabilities off after distillation | Teacher miscalibration copied (§6.6) | Isotonic or per-class calibration on gold labels |
+| Student "beats" the teacher on gold | Teacher worse than assumed on this slice | Re-check the teacher; you cannot rely on its labels here |
+:::
+
+## 6.8 Check yourself
+
+:::qa[A teacher outputs (0.6, 0.3, 0.1) for a ticket. What is the gradient-noise variance of training on one sampled hard label instead, and how many sampled labels would bring it below 0.05?]
+\(1 - (0.36 + 0.09 + 0.01) = 0.54\). Averaging $m$ samples gives \(0.54/m < 0.05\), so $m \ge 11$. The soft target gives zero sampling variance in one teacher pass.
+:::
+
+:::qa[At T = 2, what happens to a teacher ratio p_j/p_k of 0.04?]
+Ratios are raised to the power \(1/T\): \(0.04^{1/2} = 0.2\). The rarer class becomes five times more visible relative to the top class; the ranking does not change.
+:::
+
+:::qa[Why multiply the soft term by T²? What goes wrong if you drop it and move from T = 1 to T = 4?]
+The soft-term gradient scales as roughly \(1/T^2\) for large $T$. Without the factor, going from $T=1$ to $T=4$ shrinks the soft gradient by about 16×, so a fixed $\alpha = 0.3$ effectively becomes almost pure hard-label training, and you would wrongly conclude that higher $T$ hurts or helps.
+:::
+
+:::qa[You have 300 gold labels and 200,000 unlabelled tickets. What do you train on?]
+Teacher distributions on the unlabelled tickets (pure KD, $\alpha = 0$), keeping the 300 gold labels for evaluation and calibration. In §6.4 the step from a small gold set to a large teacher-labelled pool (70.5% → 81.1%) was far larger than any soft-versus-hard gap.
+:::
+
+:::qa[After distillation, temperature scaling leaves NLL unchanged and makes ECE worse. What does that tell you?]
+The miscalibration is not a uniform over- or under-confidence; the reliability curve bends both ways (underconfident mid-range, overconfident at the top). A single scalar cannot fix it — use a monotone non-parametric map such as isotonic regression on held-out gold labels, then re-derive the decision thresholds.
+:::
+
+Next: [§7 Probabilities, thresholds, and calibration](/c/practical-slm-decision-models/07-probabilities-and-calibration) — turning the student's scores into probabilities the cost formulas can use.

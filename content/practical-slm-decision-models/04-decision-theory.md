@@ -2,424 +2,663 @@
 section: "4"
 title: "Decision theory"
 kicker: "Theory"
-abstract: "Why a probability beats a label, how the cost matrix fixes the threshold before you train anything, why abstention is an action rather than a cop-out, and how to attribute the loss when the decision is wrong."
-time: "18 min"
+abstract: "Derive every threshold from a cost matrix before training anything: the expected-cost argmin, the two-action cut point, the three-action review band and when it vanishes, what a capacity cap costs, when a second signal is worth buying, and what to do when you trust neither the probabilities nor the costs."
+time: "35 min"
 order: 4
 outcomes:
-  - "Explain why accuracy is the wrong objective for a decision"
-  - "Derive the threshold and the abstain band from a cost matrix"
-  - "Attribute regret to belief error or to a capacity constraint"
+  - "Derive the approve/decline threshold and the review band from a cost matrix, with exact cut points"
+  - "Compute what a review cap costs and attribute regret to belief error versus constraint"
+  - "Decide whether a second signal is worth buying with EVSI"
+  - "Choose between expected cost, maximin and minimax regret when probabilities or costs are contested"
 ---
 
-There is a specific reason decision theory belongs in an engineering guide rather than a footnote: **it moves work from the model to the arithmetic.** A team that has a cost matrix can ship a defensible system with a mediocre model. A team without one will spend a quarter improving accuracy and be unable to say whether the product got better.
+A lender pre-screens 100,000 loan applications a month. A model reads each application and returns $p = P(\text{good})$. Three things can happen next: `auto_approve`, `manual_review` or `decline`. Approving a bad case costs ₹120,000; declining a good one loses ₹24,000 of margin; a manual review costs ₹900 on the ops sheet. Which action should a case with $p = 0.71$ get — and what threshold should the team ship? Every answer in this section comes from arithmetic on those three numbers, and none of it needs a trained model.
 
-This section is the concept, the derivation, and the pictures. The code follows, and it exists to compute the numbers rather than to be the argument.
+:::key[First principle]
+A decision model does not choose the most likely outcome; it chooses the action with the lowest **expected cost**. The model supplies one input — a calibrated probability. The costs, the action set and the capacity limits are business inputs, and they fix the thresholds before any training starts.
+:::
 
-## 4.1 A decision is a comparison of futures
+## 4.1 A decision is an argmin over expected cost
 
-Formally, a decision model picks an action that minimises expected cost, where the expectation is over outcomes you cannot observe:
+Let $x$ be the case, $o$ the unknown outcome and $c(a, o)$ the cost of taking action $a$ when the outcome turns out to be $o$. You never observe $o$ at decision time, so you pay the cost in expectation over the model's belief:
 
-```text
-a* = argmin over a  of  Σ over outcomes o  of  P(o | x) · cost(a, o)
-```
+$$
+\mathbb{E}[c \mid a, x] = \sum_{o} P(o \mid x)\, c(a, o),
+\qquad
+a^*(x) = \arg\min_{a \in \mathcal{A}} \; \sum_{o} P(o \mid x)\, c(a, o).
+$$
 
-Three things follow from that one line, and each one changes how you build.
+For the loan case there are two outcomes, so with $p = P(\text{good} \mid x)$ every action's expected cost is a straight line in $p$:
 
-**You need a distribution, not a label.** A classifier that says "bad" has thrown away the information the argmax needs. Two cases can both be labelled "bad" while one has P(bad) = 0.51 and the other P(bad) = 0.99 — and under an asymmetric cost matrix they deserve different actions. This is why calibration (§2) is not a polish step: it is what makes the probability usable.
+$$
+\begin{aligned}
+\mathbb{E}[c \mid \text{approve}] &= (1-p)\,c_{FP} = 120{,}000\,(1-p) \\
+\mathbb{E}[c \mid \text{decline}] &= p\,c_{FN} = 24{,}000\,p \\
+\mathbb{E}[c \mid \text{review}] &= r = 900
+\end{aligned}
+$$
 
-**The threshold is derived, not tuned.** For two actions the crossing point is a ratio of costs, computed in §4.2 before any model exists. Tuning a threshold on validation data optimises a proxy; deriving it optimises the thing you actually pay for.
+Here $c_{FP}$ is the cost of approving a bad case (a false positive for "approve") and $c_{FN}$ the cost of declining a good one. Three consequences follow from the argmin, and each changes how you build.
 
-**Abstention is an action with a price.** A review that costs money is competing with approve and decline on the same arithmetic. It is not a safety blanket bolted on afterwards, and it is not free.
+**You need a distribution, not a label.** Two applications both labelled "bad" can have $P(\text{good}) = 0.49$ and $P(\text{good}) = 0.01$. Under asymmetric costs they deserve different actions; a label has thrown away exactly the number the argmin needs. This is why calibration ([§7](/c/practical-slm-decision-models/07-probabilities-and-calibration)) is a correctness requirement, not polish.
+
+**The threshold is derived, not tuned.** It is the $p$ where two lines cross — a ratio of costs, computable on day one.
+
+**Abstention is an action with a price.** `manual_review` competes on the same arithmetic as the other two actions. It is neither free nor a safety blanket bolted on afterwards.
 
 :::mermaid[The decision triangle: what the model supplies and what the business supplies]
 flowchart TB
-  M[Model: P(outcome given observation)] --> E[Expected cost of each action]
+  M[Model: P(outcome given case)] --> E[Expected cost of each action]
   B[Business: cost matrix] --> E
-  C[Operations: abstain budget] --> E
+  C[Operations: review capacity] --> E
   E --> A[Action from a closed set]
-  A --> L[Logged decision: action, probability, reason, version]
-  L -.->|production misses| M
+  A --> L[Logged: action, p, costs, versions]
+  L -.->|outcomes arrive later| M
 :::
 
-Read the diagram as an ownership map. The model supplies one arrow — the probability. Everything else is a decision someone in the business has to make, and pretending otherwise is how ML teams end up owning outcomes they cannot control.
+Read the diagram as an ownership map. The model owns one arrow. The cost matrix and the capacity limit belong to people who can be held accountable for them, and they should sign them off in writing.
 
-## 4.2 The cost matrix fixes the threshold
+## 4.2 Two actions: the threshold is a cost ratio
 
-With two outcomes every action's expected cost is a straight line in `p = P(good)`. The cheapest line wins its interval, and the crossing points are where two lines meet — a ratio of costs, nothing more.
+Start with only `auto_approve` and `decline`. Approve when its expected cost is lower:
 
-<svg viewBox="0 0 760 320" role="img" aria-label="Each action is a straight line in P(good); the cheapest line wins its interval" style="width:100%;height:auto;font-family:var(--sans,system-ui);font-size:11px">
-<rect x="0" y="0" width="760" height="320" fill="transparent"/>
-<line x1="62" y1="274.0" x2="610" y2="274.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
-<text x="54" y="278.0" text-anchor="end" fill="var(--dim,#5c6472)">0</text>
-<line x1="62" y1="226.0" x2="610" y2="226.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
-<text x="54" y="230.0" text-anchor="end" fill="var(--dim,#5c6472)">25k</text>
-<line x1="62" y1="178.0" x2="610" y2="178.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
-<text x="54" y="182.0" text-anchor="end" fill="var(--dim,#5c6472)">50k</text>
-<line x1="62" y1="130.0" x2="610" y2="130.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
-<text x="54" y="134.0" text-anchor="end" fill="var(--dim,#5c6472)">75k</text>
-<line x1="62" y1="82.0" x2="610" y2="82.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
-<text x="54" y="86.0" text-anchor="end" fill="var(--dim,#5c6472)">100k</text>
-<line x1="62" y1="34.0" x2="610" y2="34.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
-<text x="54" y="38.0" text-anchor="end" fill="var(--dim,#5c6472)">125k</text>
-<line x1="62.0" y1="274" x2="62.0" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
-<text x="62.0" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">0.00</text>
-<line x1="171.6" y1="274" x2="171.6" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
-<text x="171.6" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">0.20</text>
-<line x1="281.2" y1="274" x2="281.2" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
-<text x="281.2" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">0.40</text>
-<line x1="390.8" y1="274" x2="390.8" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
-<text x="390.8" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">0.60</text>
-<line x1="500.4" y1="274" x2="500.4" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
-<text x="500.4" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">0.80</text>
-<line x1="610.0" y1="274" x2="610.0" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
-<text x="610.0" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">1.00</text>
-<line x1="62" y1="274" x2="610" y2="274" stroke="var(--rule-2,#c5cbb2)" stroke-width="1.2"/>
-<line x1="62" y1="274" x2="62" y2="34" stroke="var(--rule-2,#c5cbb2)" stroke-width="1.2"/>
-<polyline points="62.0,43.6 64.7,44.8 67.5,45.9 70.2,47.1 73.0,48.2 75.7,49.4 78.4,50.5 81.2,51.7 83.9,52.8 86.7,54.0 89.4,55.1 92.1,56.3 94.9,57.4 97.6,58.6 100.4,59.7 103.1,60.9 105.8,62.0 108.6,63.2 111.3,64.3 114.1,65.5 116.8,66.6 119.5,67.8 122.3,68.9 125.0,70.1 127.8,71.2 130.5,72.4 133.2,73.6 136.0,74.7 138.7,75.9 141.5,77.0 144.2,78.2 146.9,79.3 149.7,80.5 152.4,81.6 155.2,82.8 157.9,83.9 160.6,85.1 163.4,86.2 166.1,87.4 168.9,88.5 171.6,89.7 174.3,90.8 177.1,92.0 179.8,93.1 182.6,94.3 185.3,95.4 188.0,96.6 190.8,97.7 193.5,98.9 196.3,100.0 199.0,101.2 201.7,102.4 204.5,103.5 207.2,104.7 210.0,105.8 212.7,107.0 215.4,108.1 218.2,109.3 220.9,110.4 223.7,111.6 226.4,112.7 229.1,113.9 231.9,115.0 234.6,116.2 237.4,117.3 240.1,118.5 242.8,119.6 245.6,120.8 248.3,121.9 251.1,123.1 253.8,124.2 256.5,125.4 259.3,126.5 262.0,127.7 264.8,128.8 267.5,130.0 270.2,131.2 273.0,132.3 275.7,133.5 278.5,134.6 281.2,135.8 283.9,136.9 286.7,138.1 289.4,139.2 292.2,140.4 294.9,141.5 297.6,142.7 300.4,143.8 303.1,145.0 305.9,146.1 308.6,147.3 311.3,148.4 314.1,149.6 316.8,150.7 319.6,151.9 322.3,153.0 325.0,154.2 327.8,155.3 330.5,156.5 333.3,157.6 336.0,158.8 338.7,160.0 341.5,161.1 344.2,162.3 347.0,163.4 349.7,164.6 352.4,165.7 355.2,166.9 357.9,168.0 360.7,169.2 363.4,170.3 366.1,171.5 368.9,172.6 371.6,173.8 374.4,174.9 377.1,176.1 379.8,177.2 382.6,178.4 385.3,179.5 388.1,180.7 390.8,181.8 393.5,183.0 396.3,184.1 399.0,185.3 401.8,186.4 404.5,187.6 407.2,188.8 410.0,189.9 412.7,191.1 415.5,192.2 418.2,193.4 420.9,194.5 423.7,195.7 426.4,196.8 429.2,198.0 431.9,199.1 434.6,200.3 437.4,201.4 440.1,202.6 442.9,203.7 445.6,204.9 448.3,206.0 451.1,207.2 453.8,208.3 456.6,209.5 459.3,210.6 462.0,211.8 464.8,212.9 467.5,214.1 470.3,215.2 473.0,216.4 475.7,217.6 478.5,218.7 481.2,219.9 484.0,221.0 486.7,222.2 489.4,223.3 492.2,224.5 494.9,225.6 497.7,226.8 500.4,227.9 503.1,229.1 505.9,230.2 508.6,231.4 511.4,232.5 514.1,233.7 516.8,234.8 519.6,236.0 522.3,237.1 525.1,238.3 527.8,239.4 530.5,240.6 533.3,241.7 536.0,242.9 538.8,244.0 541.5,245.2 544.2,246.4 547.0,247.5 549.7,248.7 552.5,249.8 555.2,251.0 557.9,252.1 560.7,253.3 563.4,254.4 566.2,255.6 568.9,256.7 571.6,257.9 574.4,259.0 577.1,260.2 579.9,261.3 582.6,262.5 585.3,263.6 588.1,264.8 590.8,265.9 593.6,267.1 596.3,268.2 599.0,269.4 601.8,270.5 604.5,271.7 607.3,272.8 610.0,274.0" fill="none" stroke="var(--accent,#6d28d9)" stroke-width="2.2"/>
-<polyline points="62.0,272.3 64.7,272.3 67.5,272.3 70.2,272.3 73.0,272.3 75.7,272.3 78.4,272.3 81.2,272.3 83.9,272.3 86.7,272.3 89.4,272.3 92.1,272.3 94.9,272.3 97.6,272.3 100.4,272.3 103.1,272.3 105.8,272.3 108.6,272.3 111.3,272.3 114.1,272.3 116.8,272.3 119.5,272.3 122.3,272.3 125.0,272.3 127.8,272.3 130.5,272.3 133.2,272.3 136.0,272.3 138.7,272.3 141.5,272.3 144.2,272.3 146.9,272.3 149.7,272.3 152.4,272.3 155.2,272.3 157.9,272.3 160.6,272.3 163.4,272.3 166.1,272.3 168.9,272.3 171.6,272.3 174.3,272.3 177.1,272.3 179.8,272.3 182.6,272.3 185.3,272.3 188.0,272.3 190.8,272.3 193.5,272.3 196.3,272.3 199.0,272.3 201.7,272.3 204.5,272.3 207.2,272.3 210.0,272.3 212.7,272.3 215.4,272.3 218.2,272.3 220.9,272.3 223.7,272.3 226.4,272.3 229.1,272.3 231.9,272.3 234.6,272.3 237.4,272.3 240.1,272.3 242.8,272.3 245.6,272.3 248.3,272.3 251.1,272.3 253.8,272.3 256.5,272.3 259.3,272.3 262.0,272.3 264.8,272.3 267.5,272.3 270.2,272.3 273.0,272.3 275.7,272.3 278.5,272.3 281.2,272.3 283.9,272.3 286.7,272.3 289.4,272.3 292.2,272.3 294.9,272.3 297.6,272.3 300.4,272.3 303.1,272.3 305.9,272.3 308.6,272.3 311.3,272.3 314.1,272.3 316.8,272.3 319.6,272.3 322.3,272.3 325.0,272.3 327.8,272.3 330.5,272.3 333.3,272.3 336.0,272.3 338.7,272.3 341.5,272.3 344.2,272.3 347.0,272.3 349.7,272.3 352.4,272.3 355.2,272.3 357.9,272.3 360.7,272.3 363.4,272.3 366.1,272.3 368.9,272.3 371.6,272.3 374.4,272.3 377.1,272.3 379.8,272.3 382.6,272.3 385.3,272.3 388.1,272.3 390.8,272.3 393.5,272.3 396.3,272.3 399.0,272.3 401.8,272.3 404.5,272.3 407.2,272.3 410.0,272.3 412.7,272.3 415.5,272.3 418.2,272.3 420.9,272.3 423.7,272.3 426.4,272.3 429.2,272.3 431.9,272.3 434.6,272.3 437.4,272.3 440.1,272.3 442.9,272.3 445.6,272.3 448.3,272.3 451.1,272.3 453.8,272.3 456.6,272.3 459.3,272.3 462.0,272.3 464.8,272.3 467.5,272.3 470.3,272.3 473.0,272.3 475.7,272.3 478.5,272.3 481.2,272.3 484.0,272.3 486.7,272.3 489.4,272.3 492.2,272.3 494.9,272.3 497.7,272.3 500.4,272.3 503.1,272.3 505.9,272.3 508.6,272.3 511.4,272.3 514.1,272.3 516.8,272.3 519.6,272.3 522.3,272.3 525.1,272.3 527.8,272.3 530.5,272.3 533.3,272.3 536.0,272.3 538.8,272.3 541.5,272.3 544.2,272.3 547.0,272.3 549.7,272.3 552.5,272.3 555.2,272.3 557.9,272.3 560.7,272.3 563.4,272.3 566.2,272.3 568.9,272.3 571.6,272.3 574.4,272.3 577.1,272.3 579.9,272.3 582.6,272.3 585.3,272.3 588.1,272.3 590.8,272.3 593.6,272.3 596.3,272.3 599.0,272.3 601.8,272.3 604.5,272.3 607.3,272.3 610.0,272.3" fill="none" stroke="var(--accent-2,#8a5a00)" stroke-width="2.2"/>
-<polyline points="62.0,274.0 64.7,273.8 67.5,273.5 70.2,273.3 73.0,273.1 75.7,272.8 78.4,272.6 81.2,272.4 83.9,272.2 86.7,271.9 89.4,271.7 92.1,271.5 94.9,271.2 97.6,271.0 100.4,270.8 103.1,270.5 105.8,270.3 108.6,270.1 111.3,269.9 114.1,269.6 116.8,269.4 119.5,269.2 122.3,268.9 125.0,268.7 127.8,268.5 130.5,268.2 133.2,268.0 136.0,267.8 138.7,267.5 141.5,267.3 144.2,267.1 146.9,266.9 149.7,266.6 152.4,266.4 155.2,266.2 157.9,265.9 160.6,265.7 163.4,265.5 166.1,265.2 168.9,265.0 171.6,264.8 174.3,264.6 177.1,264.3 179.8,264.1 182.6,263.9 185.3,263.6 188.0,263.4 190.8,263.2 193.5,262.9 196.3,262.7 199.0,262.5 201.7,262.2 204.5,262.0 207.2,261.8 210.0,261.6 212.7,261.3 215.4,261.1 218.2,260.9 220.9,260.6 223.7,260.4 226.4,260.2 229.1,259.9 231.9,259.7 234.6,259.5 237.4,259.3 240.1,259.0 242.8,258.8 245.6,258.6 248.3,258.3 251.1,258.1 253.8,257.9 256.5,257.6 259.3,257.4 262.0,257.2 264.8,257.0 267.5,256.7 270.2,256.5 273.0,256.3 275.7,256.0 278.5,255.8 281.2,255.6 283.9,255.3 286.7,255.1 289.4,254.9 292.2,254.6 294.9,254.4 297.6,254.2 300.4,254.0 303.1,253.7 305.9,253.5 308.6,253.3 311.3,253.0 314.1,252.8 316.8,252.6 319.6,252.3 322.3,252.1 325.0,251.9 327.8,251.7 330.5,251.4 333.3,251.2 336.0,251.0 338.7,250.7 341.5,250.5 344.2,250.3 347.0,250.0 349.7,249.8 352.4,249.6 355.2,249.3 357.9,249.1 360.7,248.9 363.4,248.7 366.1,248.4 368.9,248.2 371.6,248.0 374.4,247.7 377.1,247.5 379.8,247.3 382.6,247.0 385.3,246.8 388.1,246.6 390.8,246.4 393.5,246.1 396.3,245.9 399.0,245.7 401.8,245.4 404.5,245.2 407.2,245.0 410.0,244.7 412.7,244.5 415.5,244.3 418.2,244.0 420.9,243.8 423.7,243.6 426.4,243.4 429.2,243.1 431.9,242.9 434.6,242.7 437.4,242.4 440.1,242.2 442.9,242.0 445.6,241.7 448.3,241.5 451.1,241.3 453.8,241.1 456.6,240.8 459.3,240.6 462.0,240.4 464.8,240.1 467.5,239.9 470.3,239.7 473.0,239.4 475.7,239.2 478.5,239.0 481.2,238.7 484.0,238.5 486.7,238.3 489.4,238.1 492.2,237.8 494.9,237.6 497.7,237.4 500.4,237.1 503.1,236.9 505.9,236.7 508.6,236.4 511.4,236.2 514.1,236.0 516.8,235.8 519.6,235.5 522.3,235.3 525.1,235.1 527.8,234.8 530.5,234.6 533.3,234.4 536.0,234.1 538.8,233.9 541.5,233.7 544.2,233.4 547.0,233.2 549.7,233.0 552.5,232.8 555.2,232.5 557.9,232.3 560.7,232.1 563.4,231.8 566.2,231.6 568.9,231.4 571.6,231.1 574.4,230.9 577.1,230.7 579.9,230.5 582.6,230.2 585.3,230.0 588.1,229.8 590.8,229.5 593.6,229.3 596.3,229.1 599.0,228.8 601.8,228.6 604.5,228.4 607.3,228.2 610.0,227.9" fill="none" stroke="var(--dim,#6a7059)" stroke-width="2.2" stroke-dasharray="5 4"/>
-<text x="336" y="312" text-anchor="middle" fill="var(--ink-2,#3a3f2c)">P(good) — the model's probability the case is good</text>
-<text x="14" y="154" text-anchor="middle" fill="var(--ink-2,#3a3f2c)" transform="rotate(-90 14 154)">expected cost (INR)</text>
-<text x="62" y="18" fill="var(--ink,#15170f)" font-size="12.5" font-weight="600">Each action is a straight line in P(good); the cheapest line wins its interval</text>
-<line x1="624" y1="42" x2="644" y2="42" stroke="var(--accent,#6d28d9)" stroke-width="2.4"/>
-<text x="650" y="46" fill="var(--ink-2,#3a3f2c)">auto_approve</text>
-<line x1="624" y1="62" x2="644" y2="62" stroke="var(--accent-2,#8a5a00)" stroke-width="2.4"/>
-<text x="650" y="66" fill="var(--ink-2,#3a3f2c)">manual_review</text>
-<line x1="624" y1="82" x2="644" y2="82" stroke="var(--dim,#6a7059)" stroke-width="2.4" stroke-dasharray="5 4"/>
-<text x="650" y="86" fill="var(--ink-2,#3a3f2c)">decline</text>
-</svg>
+$$
+(1-p)\,c_{FP} < p\,c_{FN}
+\;\Longleftrightarrow\;
+c_{FP} < p\,(c_{FP} + c_{FN})
+\;\Longleftrightarrow\;
+p > p^* = \frac{c_{FP}}{c_{FP} + c_{FN}}.
+$$
 
-The picture is the whole argument of this section. `auto_approve` falls as the case gets better, `decline` rises as it gets worse, and `manual_review` is flat because it costs the same either way. Where they cross is the threshold:
+:::example[Worked example · the loan threshold]
+$c_{FP} = 120{,}000$, $c_{FN} = 24{,}000$:
 
-```text
-approve rather than decline  ⟺  p · c(decline, good)  >  (1 − p) · c(approve, bad)
-                             ⟺  p  >  c(approve, bad) / ( c(approve, bad) + c(decline, good) )
-```
+$$
+p^* = \frac{120{,}000}{120{,}000 + 24{,}000} = \frac{5}{6} = 0.8333
+$$
 
-With the numbers in this course — 120,000 for a bad approval against 24,000 of lost margin on a good one — that ratio is 0.833. A team that ships the default 0.5 is not being 40% more cautious; it is approving cases it has itself declared unaffordable.
+At $p = 0.71$: approving costs \(0.29 \times 120{,}000\) = ₹34,800 in expectation, declining costs \(0.71 \times 24{,}000\) = ₹17,040. Decline, even though the case is more likely good than bad.
+:::
 
-Note what the review line does to that picture: it is so cheap (900) that it undercuts both sloped lines across almost the entire range. That is the next section's problem.
+Two readings of the formula are worth keeping:
 
-## 4.3 Abstention is an action, and it can eat the product
+- **Only the ratio matters.** Scaling both costs by 10× leaves $p^*$ unchanged. If $c_{FP} = k\,c_{FN}$ then $p^* = k/(k+1)$: a 5:1 ratio gives 0.833, 1:1 gives 0.5, 1:5 gives 0.167.
+- **Shipping 0.5 is a cost claim.** A 0.5 threshold asserts that a bad approval costs the same as a lost good customer. Here it approves every case in $[0.5, 0.833)$, each of which the team's own numbers say is a net loss.
 
-`manual_review` is never the cheapest action *if you knew the outcome* — knowing the outcome, you would approve or decline. It is still correct to keep it, because the model never knows the outcome; it knows a probability. An action that is dominated under certainty but optimal over a range of probabilities is exactly what an escalation path is.
+:::details[Why the cut point is where the lines cross]
+Each action's expected cost is linear in $p$, so the difference between two actions is linear too and changes sign exactly once. With $D(p) = \mathbb{E}[c\mid\text{approve}] - \mathbb{E}[c\mid\text{decline}] = c_{FP} - p\,(c_{FP} + c_{FN})$, $D$ is positive at $p=0$, negative at $p=1$, and zero only at $p^*$. No search over thresholds can do better than solving $D(p) = 0$; a grid search can only do worse by half a grid step.
+:::
 
-The failure mode is the opposite of what teams expect. A cheap review makes abstention optimal almost everywhere, and the arithmetic then hands you a product that routes four cases in five to a human:
+## 4.3 Three actions: the review band and its exact cut points
 
-| What you changed | What happens | Why |
-| --- | --- | --- |
-| Review costs 900, mistakes cost 120,000 | 82% abstain rate | Review undercuts both decisions across the band |
-| Review cost raised to 25,000 | Band narrows to a usable width | The reviewer is priced like the resource they are |
-| Review cost left alone, cap set at 25% | Cost per case rises, volume controlled | The cap forces decisions the arithmetic would not |
+Add `manual_review` at a flat cost $r$. It wins wherever it undercuts both sloped lines:
 
-The middle row is the one people resist, because "a review only takes ten minutes" is true and irrelevant. Price the review at what a review *costs the business*: salary per hour divided by cases per hour, plus the queueing delay, plus the SLA penalty for a slow answer. Then look at the band again.
+$$
+\begin{aligned}
+r < p\,c_{FN} &\iff p > p_{lo} = \frac{r}{c_{FN}} \\
+r < (1-p)\,c_{FP} &\iff p < p_{hi} = 1 - \frac{r}{c_{FP}}
+\end{aligned}
+$$
 
-## 4.4 The same picture on real scores
+So the policy is: decline below $p_{lo}$, review in $[p_{lo}, p_{hi}]$, approve above $p_{hi}$. With the ops-sheet price $r = 900$:
 
-Thresholds are only useful against a score distribution. Here is the same decision plotted against actual model output: cost per case as the threshold moves, on a mix of confident and uncertain cases.
+$$
+p_{lo} = \frac{900}{24{,}000} = 0.0375,
+\qquad
+p_{hi} = 1 - \frac{900}{120{,}000} = 0.9925.
+$$
 
-<svg viewBox="0 0 760 320" role="img" aria-label="The threshold is a business decision, not a default — cheapest here is 0.82" style="width:100%;height:auto;font-family:var(--sans,system-ui);font-size:11px">
-<rect x="0" y="0" width="760" height="320" fill="transparent"/>
-<line x1="62" y1="274.0" x2="610" y2="274.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
-<text x="54" y="278.0" text-anchor="end" fill="var(--dim,#5c6472)">0</text>
-<line x1="62" y1="194.0" x2="610" y2="194.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
-<text x="54" y="198.0" text-anchor="end" fill="var(--dim,#5c6472)">20k</text>
-<line x1="62" y1="114.0" x2="610" y2="114.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
-<text x="54" y="118.0" text-anchor="end" fill="var(--dim,#5c6472)">40k</text>
-<line x1="62" y1="34.0" x2="610" y2="34.0" stroke="var(--rule,#e3e7ef)" stroke-width="1"/>
-<text x="54" y="38.0" text-anchor="end" fill="var(--dim,#5c6472)">60k</text>
-<line x1="62.0" y1="274" x2="62.0" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
-<text x="62.0" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">0.01</text>
-<line x1="171.6" y1="274" x2="171.6" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
-<text x="171.6" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">0.21</text>
-<line x1="281.2" y1="274" x2="281.2" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
-<text x="281.2" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">0.40</text>
-<line x1="390.8" y1="274" x2="390.8" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
-<text x="390.8" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">0.60</text>
-<line x1="500.4" y1="274" x2="500.4" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
-<text x="500.4" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">0.79</text>
-<line x1="610.0" y1="274" x2="610.0" y2="278" stroke="var(--rule-2,#c5cbb2)"/>
-<text x="610.0" y="292" text-anchor="middle" fill="var(--dim,#5c6472)">0.99</text>
-<line x1="62" y1="274" x2="610" y2="274" stroke="var(--rule-2,#c5cbb2)" stroke-width="1.2"/>
-<line x1="62" y1="274" x2="62" y2="34" stroke="var(--rule-2,#c5cbb2)" stroke-width="1.2"/>
-<polyline points="62.0,61.8 67.6,73.7 73.2,81.1 78.8,87.5 84.4,92.5 90.0,97.1 95.6,101.4 101.1,105.6 106.7,109.0 112.3,111.6 117.9,114.4 123.5,117.2 129.1,120.0 134.7,123.1 140.3,125.4 145.9,128.6 151.5,131.5 157.1,134.2 162.7,137.5 168.2,139.4 173.8,141.8 179.4,143.8 185.0,146.5 190.6,149.9 196.2,152.2 201.8,154.3 207.4,156.7 213.0,160.4 218.6,163.2 224.2,165.9 229.8,168.1 235.3,170.9 240.9,173.7 246.5,177.3 252.1,180.2 257.7,182.6 263.3,185.1 268.9,187.5 274.5,189.2 280.1,191.7 285.7,194.4 291.3,196.4 296.9,198.7 302.4,201.2 308.0,202.4 313.6,203.5 319.2,205.2 324.8,207.4 330.4,209.3 336.0,211.2 341.6,212.4 347.2,214.0 352.8,215.7 358.4,217.9 364.0,218.7 369.6,220.1 375.1,221.9 380.7,224.3 386.3,225.7 391.9,227.3 397.5,228.7 403.1,229.7 408.7,231.2 414.3,231.8 419.9,233.1 425.5,233.7 431.1,234.4 436.7,235.4 442.2,235.7 447.8,236.9 453.4,237.3 459.0,238.2 464.6,239.2 470.2,240.4 475.8,240.7 481.4,241.2 487.0,241.4 492.6,241.3 498.2,241.2 503.8,241.5 509.3,241.5 514.9,242.0 520.5,241.6 526.1,241.5 531.7,241.2 537.3,241.0 542.9,241.0 548.5,240.8 554.1,240.8 559.7,240.7 565.3,240.8 570.9,240.4 576.4,239.9 582.0,239.4 587.6,238.4 593.2,237.6 598.8,236.7 604.4,235.3 610.0,233.4" fill="none" stroke="var(--accent,#6d28d9)" stroke-width="2.2"/>
-<polyline points="336.0,242.0 336.0,61.8" fill="none" stroke="var(--dim,#6a7059)" stroke-width="2.2" stroke-dasharray="5 4"/>
-<text x="336" y="312" text-anchor="middle" fill="var(--ink-2,#3a3f2c)">decision threshold on P(good)</text>
-<text x="14" y="154" text-anchor="middle" fill="var(--ink-2,#3a3f2c)" transform="rotate(-90 14 154)">cost per case (INR)</text>
-<text x="62" y="18" fill="var(--ink,#15170f)" font-size="12.5" font-weight="600">The threshold is a business decision, not a default — cheapest here is 0.82</text>
-<line x1="624" y1="42" x2="644" y2="42" stroke="var(--accent,#6d28d9)" stroke-width="2.4"/>
-<text x="650" y="46" fill="var(--ink-2,#3a3f2c)">cost per case</text>
-<line x1="624" y1="62" x2="644" y2="62" stroke="var(--dim,#6a7059)" stroke-width="2.4" stroke-dasharray="5 4"/>
-<text x="650" y="66" fill="var(--ink-2,#3a3f2c)">naive 0.5</text>
-</svg>
+The band exists only while $p_{lo} < p_{hi}$. Solving $r/c_{FN} < 1 - r/c_{FP}$ for $r$:
 
-Two readings matter. The minimum is not at 0.5 — it sits where the cost matrix says it should. And the curve is flat near its minimum, which is good news: being 0.05 off the optimal threshold costs very little, so you do not need a perfect cost estimate, only one within a factor of two. What is expensive is being at 0.5 when the optimum is 0.83, and that is a framing error, not a tuning error.
+$$
+r < r_{max} = \frac{c_{FP}\,c_{FN}}{c_{FP} + c_{FN}} = \frac{120{,}000 \times 24{,}000}{144{,}000} = 20{,}000.
+$$
 
-## 4.5 Regret: attributing the loss
+$r_{max}$ (₹20,000) is the expected cost of the cheaper automatic action at $p^*$, where it is highest: $p^* c_{FN} = 0.8333 \times 24{,}000 = 20{,}000$. A review that costs more than the worst automatic decision is never worth buying.
 
-Once a policy exists, the useful question is not "how accurate is it" but "how much did it lose, and who owns that loss". Regret is the difference between what you spent and what an oracle would have spent on the same cases with the same information. Split it in two:
+:::chart[Each action is a line in p; the cheapest line wins its interval]{type="line" x="p = P(good)" y="expected cost per case" prefix="₹" marks="0.0375:p_lo;0.8333:p* (two actions);0.9925:p_hi" band="0.0375:0.9925:review band at ₹900" dash="review (₹8000)" points="false"}
+p, auto_approve, decline, review (₹900), review (₹8000)
+0, 120000, 0, 900, 8000
+0.0375, 115500, 900, 900, 8000
+0.1, 108000, 2400, 900, 8000
+0.2, 96000, 4800, 900, 8000
+0.3333, 80000, 8000, 900, 8000
+0.5, 60000, 12000, 900, 8000
+0.6, 48000, 14400, 900, 8000
+0.7, 36000, 16800, 900, 8000
+0.8, 24000, 19200, 900, 8000
+0.8333, 20000, 20000, 900, 8000
+0.9, 12000, 21600, 900, 8000
+0.9333, 8000, 22400, 900, 8000
+0.9925, 900, 23820, 900, 8000
+1, 0, 24000, 900, 8000
+:::
 
-- **Belief error** — the model's probability was wrong, so the right action for the belief was the wrong action in fact. This one is yours, and it shrinks with data and calibration.
-- **Constraint regret** — the policy wanted to abstain and was not allowed to. This one belongs to whoever set the budget.
-
-<svg viewBox="0 0 760 280" role="img" aria-label="Where the loss comes from: the cap dominates the model error" style="width:100%;height:auto;font-family:var(--sans,system-ui);font-size:11px">
-<rect x="0" y="0" width="760" height="280" fill="transparent"/>
-<rect x="92.3" y="232.3" width="107.8" height="1.7" fill="var(--accent,#6d28d9)" opacity="0.85" rx="3"/>
-<text x="146.2" y="226.3" text-anchor="middle" fill="var(--ink,#15170f)">72</text>
-<text x="146.2" y="252" text-anchor="middle" fill="var(--dim,#5c6472)">no-model baseline</text>
-<rect x="260.8" y="222.2" width="107.8" height="11.8" fill="var(--accent,#6d28d9)" opacity="0.85" rx="3"/>
-<text x="314.8" y="216.2" text-anchor="middle" fill="var(--ink,#15170f)">491</text>
-<text x="314.8" y="252" text-anchor="middle" fill="var(--dim,#5c6472)">belief error</text>
-<rect x="429.3" y="67.3" width="107.8" height="166.7" fill="var(--accent,#6d28d9)" opacity="0.85" rx="3"/>
-<text x="483.2" y="61.3" text-anchor="middle" fill="var(--ink,#15170f)">6913</text>
-<text x="483.2" y="252" text-anchor="middle" fill="var(--dim,#5c6472)">capacity cap</text>
-<rect x="597.8" y="55.4" width="107.8" height="178.6" fill="var(--accent,#6d28d9)" opacity="0.85" rx="3"/>
-<text x="651.8" y="49.4" text-anchor="middle" fill="var(--ink,#15170f)">7404</text>
-<text x="651.8" y="252" text-anchor="middle" fill="var(--dim,#5c6472)">constrained total</text>
-<line x1="62" y1="234" x2="736" y2="234" stroke="var(--rule-2,#c5cbb2)"/>
-<text x="14" y="134" text-anchor="middle" fill="var(--ink-2,#3a3f2c)" transform="rotate(-90 14 134)">expected regret per case (INR)</text>
-<text x="62" y="18" fill="var(--ink,#15170f)" font-size="12.5" font-weight="600">Where the loss comes from: the cap dominates the model error</text>
-</svg>
-
-The bars are the punchline of the whole section: the capacity cap costs an order of magnitude more than the model's error. Teams routinely spend a quarter of engineering on the small bar and never compute the large one. Compute both before you decide what to optimise.
-
-There is a third bar teams forget entirely — the **no-model baseline**, the regret of taking the single best action for every case. When it is lower than your model's, as it is here, the model is subtracting value and the honest move is to ship the constant action until the cost matrix is fixed.
-
-## 4.6 Should you pay for a second signal?
-
-The principled version of "call the database first" is expected value of sample information: compare the expected cost after the signal with the expected cost now, and subtract the signal's cost.
-
-```text
-EVSI = E over signal z of [ min over a  cost(a | z) ]  −  min over a cost(a)  −  cost(z)
-```
-
-Buy the signal only when EVSI is positive. The interesting result is how often it is not: if the cost matrix makes one action dominant, a signal can only change the action near the edges, and the edge is where the traffic is not.
-
-## 4.7 The code
-
-Everything above, computed rather than asserted. First the regions — solved by intersecting lines, not by scanning a grid, because a grid hides dominated actions and is off by half a step.
+The ₹900 line sits under both sloped lines across 95.5% of the unit interval. The dashed ₹8,000 line crosses `decline` at \(8{,}000/24{,}000 = 0.333\) and `auto_approve` at \(1 - 8{,}000/120{,}000 = 0.933\) — a narrower band. Solve the regions exactly rather than scanning a grid; a grid hides dominated actions and is off by half a step:
 
 ```python run
-"""Exact optimal regions, abstain pricing and regret decomposition."""
+"""Exact optimal regions for the loan triage, solved by intersecting lines."""
 import itertools
 
-ACTIONS = ["auto_approve", "manual_review", "decline"]
-COSTS = {
+ACTIONS = ["decline", "manual_review", "auto_approve"]
+COSTS = {  # (action, outcome) -> INR
     ("auto_approve", "bad"): 120_000.0, ("auto_approve", "good"): 0.0,
     ("manual_review", "bad"): 900.0,    ("manual_review", "good"): 900.0,
     ("decline", "bad"): 0.0,            ("decline", "good"): 24_000.0,
 }
 
 
-def line(action):
-    """Expected cost as m*p + c with p = P(good)."""
-    c_bad, c_good = COSTS[(action, "bad")], COSTS[(action, "good")]
-    return c_good - c_bad, c_bad
+def line(a):
+    """Expected cost of action a as slope * p + intercept, p = P(good)."""
+    return COSTS[(a, "good")] - COSTS[(a, "bad")], COSTS[(a, "bad")]
 
 
-def crossing(a1, a2):
-    m1, c1 = line(a1)
-    m2, c2 = line(a2)
-    if abs(m1 - m2) < 1e-12:
-        return None
-    p = (c2 - c1) / (m1 - m2)
-    return p if 0.0 <= p <= 1.0 else None
-
-
-def regions():
-    """[(p_lo, p_hi, action)] - exact, no grid."""
-    cuts = sorted({0.0, 1.0} | {x for a1, a2 in itertools.combinations(ACTIONS, 2)
-                                for x in [crossing(a1, a2)] if x is not None})
-    out = []
-    for lo, hi in zip(cuts[:-1], cuts[1:]):
-        mid = (lo + hi) / 2
-        best = min(ACTIONS, key=lambda a: line(a)[0] * mid + line(a)[1])
-        if out and out[-1][2] == best:
-            out[-1] = (out[-1][0], hi, best)
-        else:
-            out.append((lo, hi, best))
-    return out
-
-
-def dominated():
-    """Actions that are never cheapest for any p. Not always a mistake - see 4.2."""
-    winners = {a for _lo, _hi, a in regions()}
-    return [a for a in ACTIONS if a not in winners]
+def cost(a, p):
+    m, c = line(a)
+    return m * p + c
 
 
 def best_action(p):
-    return min(ACTIONS, key=lambda a: line(a)[0] * p + line(a)[1])
+    return min(ACTIONS, key=lambda a: cost(a, p))
 
 
-def expected_cost(p):
-    return {a: round(line(a)[0] * p + line(a)[1], 2) for a in ACTIONS}
+def crossing(a1, a2):
+    (m1, c1), (m2, c2) = line(a1), line(a2)
+    if m1 == m2:
+        return None
+    p = (c2 - c1) / (m1 - m2)
+    return p if 0.0 < p < 1.0 else None
 
 
-print("regions (P(good)):")
-for lo, hi, a in regions():
-    print("  %6.4f - %6.4f  %-14s  cost at midpoint %9.0f" % (lo, hi, a, expected_cost((lo + hi) / 2)[a]))
-print("dominated actions:", dominated() or "none")
+def regions():
+    """[(p_lo, p_hi, action)]: exact, no grid."""
+    cuts = sorted({0.0, 1.0} | {x for a, b in itertools.combinations(ACTIONS, 2)
+                                if (x := crossing(a, b)) is not None})
+    out = []
+    for lo, hi in zip(cuts[:-1], cuts[1:]):
+        a = best_action((lo + hi) / 2)
+        if out and out[-1][2] == a:
+            out[-1] = (out[-1][0], hi, a)
+        else:
+            out.append((lo, hi, a))
+    return out
+
+
+for a, b in itertools.combinations(ACTIONS, 2):
+    print("%-13s = %-13s at p = %.4f" % (a, b, crossing(a, b)))
 print()
-print("the threshold people quote: P(good) > %.4f to approve" % crossing("auto_approve", "decline"))
-print("expected cost at p=0.71:", expected_cost(0.71))
+for lo, hi, a in regions():
+    print("%.4f - %.4f  %-13s" % (lo, hi, a))
+print("expected cost at p=0.71:", {a: round(cost(a, 0.71)) for a in ACTIONS})
+
+# invariants any cost matrix must satisfy before it goes near a model
+regs = regions()
+assert abs(sum(hi - lo for lo, hi, _ in regs) - 1.0) < 1e-12, "regions must tile [0, 1]"
+for lo, hi, a in regs:
+    assert best_action((lo + hi) / 2) == a, "region and argmin disagree"
+r_max = COSTS[("auto_approve", "bad")] * COSTS[("decline", "good")] / (
+    COSTS[("auto_approve", "bad")] + COSTS[("decline", "good")])
+print("review band exists while review cost < %.0f" % r_max)
 ```
 
-```text
-regions (P(good)):
-  0.0000 - 0.0375  decline         cost at midpoint       450
-  0.0375 - 0.9925  manual_review   cost at midpoint       900
-  0.9925 - 1.0000  auto_approve    cost at midpoint       450
-dominated actions: none
+```output
+decline       = manual_review at p = 0.0375
+decline       = auto_approve  at p = 0.8333
+manual_review = auto_approve  at p = 0.9925
 
-the threshold people quote: P(good) > 0.8333 to approve
-expected cost at p=0.71: {'auto_approve': 34800.0, 'manual_review': 900.0, 'decline': 17040.0}
+0.0000 - 0.0375  decline      
+0.0375 - 0.9925  manual_review
+0.9925 - 1.0000  auto_approve 
+expected cost at p=0.71: {'decline': 17040, 'manual_review': 900, 'auto_approve': 34800}
+review band exists while review cost < 20000
 ```
 
-The `manual_review` region spanning almost the whole interval is the arithmetic telling you the review is too cheap. Two responses, and only one is a modelling change: raise the review cost to what a reviewer actually costs, or cap the volume with `max_abstain_rate` (§1 implements it, §2 uses it).
+Note that the two-action threshold 0.8333 is a real crossing but not a region boundary: with a ₹900 review, `decline` and `auto_approve` meet inside the review band, where neither is the cheapest. The threshold people quote only governs the policy once the review option is removed or priced above ₹20,000.
 
-Now the regret decomposition, with a non-free oracle so the split means something:
+## 4.4 The cheap review eats the product
+
+`manual_review` is never the best action if you know the outcome — you would simply approve or decline. It is optimal over a range of $p$ because the model never knows the outcome. The danger runs the other way from what teams expect: price the review too cheaply and the arithmetic routes most of the volume to humans.
+
+To see the size of the effect you need a score population. The code below draws 200,000 applications, 80% good, with a score whose exact posterior is $\operatorname{logit} p = \ln 4 + 2s$ — calibrated by construction, so policy and probability are not confounded. "Reviews/mo" assumes 100,000 applications a month.
 
 ```python run
-"""Regret = model regret + approximation regret + constraint regret."""
+"""What the review price does to the product, on a calibrated score population."""
 import numpy as np
 
-rng = np.random.default_rng(7)
-n = 6000
-p_true = rng.beta(0.6, 0.6, n)                 # the real posterior for each case
-y = (rng.random(n) < p_true).astype(int)
-
-# the model's belief: honest on average, wrong per case
-p_model = np.clip(p_true + rng.normal(0, 0.10, n), 0.001, 0.999)
-
-
-def action_for(p, cap=None, budget_actions=None):
-    """Cost-optimal action, optionally under a capacity constraint."""
-    if cap is not None and budget_actions is not None:
-        return budget_actions
-    return best_action(float(p))
+C_FP, C_FN = 120_000.0, 24_000.0          # approve a bad case / decline a good case
+rng = np.random.default_rng(0)
+n = 200_000
+good = rng.random(n) < 0.80               # 80% of applicants are good
+score = rng.normal(np.where(good, 1.0, -1.0), 1.0)
+p = 1 / (1 + np.exp(-(np.log(4) + 2 * score)))   # exact posterior => calibrated
 
 
-def realised_cost(action, outcome):
-    return COSTS[(action, "good" if outcome else "bad")]
+def policy(p, review, cap=None):
+    """Three-action Bayes policy; optional cap on the share sent to review."""
+    lo, hi = review / C_FN, 1 - review / C_FP
+    best_auto = np.minimum(p * C_FN, (1 - p) * C_FP)       # cheaper of decline/approve
+    want_review = (p >= lo) & (p <= hi) if lo < hi else np.zeros_like(p, bool)
+    if cap is not None and want_review.mean() > cap:
+        saving = np.where(want_review, best_auto - review, -np.inf)
+        keep = np.argsort(-saving)[: int(cap * len(p))]     # review the biggest savings
+        want_review = np.zeros_like(p, bool)
+        want_review[keep] = True
+    return np.where(want_review, review, best_auto), want_review
 
 
-def eu(action, p):
-    return COSTS[(action, "bad")] * (1 - p) + COSTS[(action, "good")] * p
+print("%8s %8s %8s %8s %10s %12s" % ("review", "lo", "hi", "review%", "INR/case", "reviews/mo"))
+for r in (900, 3_000, 8_000, 15_000, 20_000):
+    cost, rev = policy(p, r)
+    lo, hi = (r / C_FN, 1 - r / C_FP) if r / C_FN < 1 - r / C_FP else (0.8333, 0.8333)
+    print("%8d %8.4f %8.4f %7.1f%% %10.0f %12s" % (r, lo, hi, 100 * rev.mean(), cost.mean(),
+                                                 f"{rev.mean() * 100_000:,.0f}"))
 
-
-# 1. the oracle: right action for the true posterior, no constraints
-oracle = [best_action(float(p)) for p in p_true]
-# 2. the policy: right action for the model's belief
-chosen = [best_action(float(p)) for p in p_model]
-# 3. a no-model baseline: the single action with the lowest expected cost overall
-best_constant = min(ACTIONS, key=lambda a: np.mean([eu(a, float(p)) for p in p_true]))
-# 3. the constrained policy: same, but at most 25% may abstain
-order = np.argsort([-(eu("manual_review", float(p)) < min(eu("auto_approve", float(p)),
-                                                            eu("decline", float(p))))
-                    for p in p_model])
-capped = list(chosen)
-budget = int(0.25 * n)
-abstaining = [i for i, a in enumerate(capped) if a == "manual_review"]
-for i in sorted(abstaining, key=lambda i: eu("manual_review", float(p_model[i])) -
-                min(eu("auto_approve", float(p_model[i])), eu("decline", float(p_model[i]))))[:max(0, len(abstaining) - budget)]:
-    capped[i] = best_action_excl = min(("auto_approve", "decline"),
-                                      key=lambda a: eu(a, float(p_model[i])))
-
-def regret(actions):
-    """Expected regret against the true posterior - not the realised outcome."""
-    return float(np.mean([eu(a, float(p)) - eu(o, float(p)) for a, o, p in zip(actions, oracle, p_true)]))
-
-
-total = regret(capped)
-belief = regret(chosen)
-constraint = total - belief
-baseline = regret([best_constant] * n)
-
-print("no-model baseline: always %s" % best_constant)
-print("  regret of always taking it        %10.1f" % baseline)
-print("  what the model buys you           %10.1f" % (baseline - belief))
 print()
-print("regret of the constrained policy    %10.1f" % total)
-print("  belief error (model vs truth)     %10.1f" % belief)
-print("  constraint (capacity cap)         %10.1f" % constraint)
-print()
-print("realised cost, oracle actions      %10.1f" % float(np.mean([realised_cost(o, t) for o, t in zip(oracle, y)])))
+for cap in (None, 0.25, 0.10):
+    cost, rev = policy(p, 900, cap)
+    print("review INR 900, cap %-4s -> review %5.1f%%, INR/case %5.0f" %
+          (cap or "none", 100 * rev.mean(), cost.mean()))
+
+t = np.linspace(0.5, 0.99, 491)
+two = [np.mean(np.where(p >= ti, (1 - p) * C_FP, p * C_FN)) for ti in t]
+i = int(np.argmin(two))
+print("\napprove/decline only: best t = %.3f (INR %.0f/case); t = 0.5 costs INR %.0f/case"
+      % (t[i], two[i], np.mean(np.where(p >= 0.5, (1 - p) * C_FP, p * C_FN))))
 ```
 
-```text
-no-model baseline: always manual_review
-  regret of always taking it              71.9
-  what the model buys you               -419.0
+```output
+  review       lo       hi  review%   INR/case   reviews/mo
+     900   0.0375   0.9925    79.7%        799       79,709
+    3000   0.1250   0.9750    58.6%       2220       58,576
+    8000   0.3333   0.9333    35.9%       4510       35,864
+   15000   0.6250   0.8750    16.6%       6323       16,600
+   20000   0.8333   0.8333     0.0%       6775            0
 
-regret of the constrained policy        7403.9
-  belief error (model vs truth)          490.9
-  constraint (capacity cap)             6912.9
+review INR 900, cap none -> review  79.7%, INR/case   799
+review INR 900, cap 0.25 -> review  25.0%, INR/case  2934
+review INR 900, cap 0.1  -> review  10.0%, INR/case  4991
 
-realised cost, oracle actions           842.9
+approve/decline only: best t = 0.833 (INR 6775/case); t = 0.5 costs INR 9922/case
 ```
 
-And the value of information, which is where most "should the model call an API first" arguments should start:
+The first row looks like a triumph — ₹799 per case — until you staff it. 79,709 reviews a month at 3 reviews per hour is 26,570 reviewer-hours, about **166 full-time reviewers** at 160 working hours each (illustrative throughput). Nobody approved that headcount; it fell out of a ₹900 line item.
 
-```python run
-"""EVSI: should you pay for one more observation before deciding?"""
+:::example[Worked example · pricing a review honestly (illustrative inputs)]
+| Component | Arithmetic | ₹ per review |
+| --- | --- | ---: |
+| Underwriter time | ₹1,800/h loaded ÷ 3 cases/h | 600 |
+| Second-line QA | 10% of reviews × ₹600 | 60 |
+| Applicants lost to a 2-day queue | 10% of good applicants × ₹24,000 × $p \approx 0.8$ | 1,920 |
+| Tooling, SLA penalties | flat allowance | 300 |
+| **Total** | | **≈ 2,880 → use ₹3,000** |
 
-def evsi(p_prior, signal_accuracy, cost_signal):
-    """A binary signal with known sensitivity/specificity, both = signal_accuracy."""
-    sens = spec = signal_accuracy
-    # P(signal=1) under the prior
-    p_pos = sens * p_prior + (1 - spec) * (1 - p_prior)
-    p_neg = 1 - p_pos
-    # posterior after a positive and a negative signal
-    post_pos = sens * p_prior / p_pos if p_pos > 0 else p_prior
-    post_neg = (1 - sens) * p_prior / p_neg if p_neg > 0 else p_prior
-    cost_now = min(eu(a, p_prior) for a in ACTIONS)
-    cost_after = p_pos * min(eu(a, post_pos) for a in ACTIONS) + \
-                 p_neg * min(eu(a, post_neg) for a in ACTIONS)
-    return {"cost_now": round(cost_now, 1), "cost_after": round(cost_after, 1),
-            "gain": round(cost_now - cost_after, 1),
-            "evsi": round(cost_now - cost_after - cost_signal, 1)}
-
-
-for p_prior in (0.2, 0.5, 0.8):
-    for acc in (0.7, 0.9, 0.99):
-        r = evsi(p_prior, acc, cost_signal=250.0)
-        print("p=%.1f  signal acc=%.2f  gain %8.1f  EVSI %8.1f  %s" %
-              (p_prior, acc, r["gain"], r["evsi"], "buy it" if r["evsi"] > 0 else "decide now"))
-```
-
-```text
-p=0.2  signal acc=0.70  gain      0.0  EVSI   -250.0  decide now
-p=0.2  signal acc=0.90  gain    186.0  EVSI    -64.0  decide now
-p=0.2  signal acc=0.99  gain    666.6  EVSI    416.6  buy it
-p=0.5  signal acc=0.70  gain      0.0  EVSI   -250.0  decide now
-p=0.5  signal acc=0.90  gain      0.0  EVSI   -250.0  decide now
-p=0.5  signal acc=0.99  gain    330.0  EVSI     80.0  buy it
-p=0.8  signal acc=0.70  gain      0.0  EVSI   -250.0  decide now
-p=0.8  signal acc=0.90  gain      0.0  EVSI   -250.0  decide now
-p=0.8  signal acc=0.99  gain    474.6  EVSI    224.6  buy it
-```
-
-:::note[Note 4.1.a — which criterion when]
-Expected utility needs calibrated probabilities and defensible costs. With neither — a new domain, a regulator asking about tails — use maximin over the plausible cost range and say so. Minimax regret is the right middle ground when costs are known but probabilities are contested. What is never acceptable is quietly using expected utility with invented numbers.
+The queue term dominates, and it is invisible on the ops sheet. Strictly it grows with $p$ (only good applicants walk away), which tilts the review line; treating it as flat at the band's typical $p$ is the usual first approximation. At ₹3,000 the band shrinks to $[0.125, 0.975]$ and review volume drops from 79.7% to 58.6%.
 :::
 
-## 4.8 The check
+| What you change | Review share | ₹/case | What it means |
+| --- | ---: | ---: | --- |
+| Review at ops-sheet ₹900 | 79.7% | 799 | Cheap on paper; ~166 reviewers |
+| Review priced honestly at ₹3,000 | 58.6% | 2,220 | Same policy logic, honest inputs |
+| Review ₹900, capped at 25% | 25.0% | 2,934 | Capacity forces automatic decisions |
+| Review ₹900, capped at 10% | 10.0% | 4,991 | Each cap point is paid for in errors |
+| No review (≥ ₹20,000) | 0% | 6,775 | Pure approve/decline at 0.833 |
+
+:::warn[The review band is a staffing plan]
+Before shipping any three-action policy, multiply the review share by monthly volume and divide by reviewer throughput. If the answer is more people than exist, the policy is fiction; either price the review honestly, add a cap (§4.6 shows what the cap costs), or both.
+:::
+
+## 4.5 The threshold on a real score distribution
+
+On the same 200,000 calibrated cases, restricted to approve/decline, sweep the threshold and measure the average cost per case:
+
+:::chart[Cost per case vs approve threshold — the optimum is the cost ratio, not 0.5]{type="line" x="approve when P(good) ≥ threshold" y="expected cost per case" prefix="₹" marks="0.5:naive 0.5;0.8333:optimum = 5/6"}
+threshold, cost per case
+0.04, 21488
+0.08, 19575
+0.12, 18080
+0.16, 16805
+0.20, 15714
+0.24, 14683
+0.28, 13763
+0.32, 12947
+0.36, 12203
+0.40, 11507
+0.44, 10852
+0.48, 10224
+0.52, 9647
+0.56, 9102
+0.60, 8614
+0.64, 8144
+0.68, 7717
+0.72, 7344
+0.76, 7049
+0.80, 6839
+0.84, 6778
+0.88, 6962
+0.92, 7622
+0.96, 9484
+:::
+
+Three readings:
+
+1. **The minimum is at 0.833**, exactly $p^*$, because the scores are calibrated. On uncalibrated scores the empirical minimum moves away from $p^*$ — which is the practical test for whether you need calibration.
+2. **0.5 costs ₹9,922 per case against ₹6,775 at the optimum — 46% more.** At 100,000 applications a month that is ₹31.5 crore a month of avoidable loss in this model population.
+3. **The curve is flat near the optimum.** Thresholds of 0.75 and 0.90 cost ₹7,116 and ₹7,206 — within 6.4% of the minimum. You do not need a precise cost matrix; you need one with the right ratio to within a factor of about two. Being at 0.5 when the ratio says 0.83 is a framing error, not a tuning error.
+
+## 4.6 Regret: belief error versus constraint
+
+Accuracy does not tell you who owns a loss. **Regret** does: the extra expected cost of your policy over an oracle that knows the true posterior $p^{\text{true}}$ and faces no limits, evaluated case by case under $p^{\text{true}}$:
+
+$$
+\text{Regret}(\pi) = \frac{1}{N}\sum_{i=1}^{N} \Big( \mathbb{E}\big[c \mid \pi(x_i), p_i^{\text{true}}\big] - \min_{a} \mathbb{E}\big[c \mid a, p_i^{\text{true}}\big] \Big).
+$$
+
+Split the regret of the shipped policy $\pi_{\text{cap}}$ (model beliefs plus a review cap) through the uncapped policy $\pi_{\text{model}}$:
+
+$$
+\underbrace{\text{Regret}(\pi_{\text{cap}})}_{\text{total}}
+= \underbrace{\text{Regret}(\pi_{\text{model}})}_{\text{belief error: ML team}}
++ \underbrace{\text{Regret}(\pi_{\text{cap}}) - \text{Regret}(\pi_{\text{model}})}_{\text{constraint: whoever set the cap}}.
+$$
+
+Belief error shrinks with data and calibration. Constraint regret shrinks only when someone changes the cap. Here review is priced at ₹3,000 (the honest price from §4.4) and capped at 25%, against two models: one noisy but unbiased in logit space, and one that is also overconfident (logits stretched by 1.5×).
 
 ```python run
-# the properties any cost matrix must satisfy before it goes near a model
-regs = regions()
-assert abs(sum(hi - lo for lo, hi, _a in regs) - 1.0) < 1e-9, "regions must tile [0, 1]"
-assert all(lo < hi for lo, hi, _a in regs), "empty region"
-for lo, hi, a in regs:                                   # the winner must win inside its region
-    mid = (lo + hi) / 2
-    assert best_action(mid) == a, "region and argmin disagree at %.3f" % mid
-# a cost matrix with no free action has a non-zero floor - check you meant that
-floor = min(max(COSTS[(a, o)] for a in ACTIONS) for o in ("bad", "good"))
-print("regions tile [0,1]: ok | worst-case cost floor: %.0f" % floor)
+"""Regret = belief error + constraint, judged against the true posterior."""
+import numpy as np
+
+C_FP, C_FN, REVIEW, CAP = 120_000.0, 24_000.0, 3_000.0, 0.25
+rng = np.random.default_rng(1)
+n = 100_000
+good = rng.random(n) < 0.80
+score = rng.normal(np.where(good, 1.0, -1.0), 1.0)
+logit_true = np.log(4) + 2 * score
+p_true = 1 / (1 + np.exp(-logit_true))                 # what an oracle would believe
+noise = rng.normal(0, 1.0, n)
+MODELS = {"noisy": logit_true + noise,                 # right on average, wrong per case
+          "noisy+overconfident": 1.5 * logit_true + noise}
+
+
+def exp_cost(p):
+    """Expected cost per action; columns = decline, review, approve."""
+    return np.stack([p * C_FN, np.full_like(p, REVIEW), (1 - p) * C_FP], axis=1)
+
+
+def choose(p, cap=None):
+    e = exp_cost(p)
+    a = e.argmin(1)
+    if cap is not None and (a == 1).mean() > cap:
+        saving = np.where(a == 1, e[:, [0, 2]].min(1) - REVIEW, -np.inf)
+        a = np.where(e[:, 0] < e[:, 2], 0, 2)
+        a[np.argsort(-saving)[: int(cap * len(p))]] = 1  # review the biggest savings
+    return a
+
+
+truth = exp_cost(p_true)
+paid = lambda a: truth[np.arange(n), a].mean()
+oracle = paid(choose(p_true))
+print("oracle INR %.0f/case | regret of best constant action INR %.0f | oracle under cap INR %.0f"
+      % (oracle, min(truth.mean(0)) - oracle, paid(choose(p_true, CAP)) - oracle))
+print()
+print("%-20s %8s %8s %11s %8s" % ("model", "review%", "belief", "constraint", "total"))
+for name, logit in MODELS.items():
+    p_model = 1 / (1 + np.exp(-logit))
+    belief = paid(choose(p_model)) - oracle
+    total = paid(choose(p_model, CAP)) - oracle
+    print("%-20s %7.1f%% %8.0f %11.0f %8.0f" % (name, 100 * (choose(p_model) == 1).mean(),
+                                               belief, total - belief, total))
 ```
 
-```text
-regions tile [0,1]: ok | worst-case cost floor: 24000
+```output
+oracle INR 2226/case | regret of best constant action INR 774 | oracle under cap INR 1243
+
+model                 review%   belief  constraint    total
+noisy                   57.4%      326        1859     2185
+noisy+overconfident     36.1%      877         945     1821
 ```
 
-If the regions do not tile the unit interval, or the winner disagrees with the argmin inside its own region, the cost matrix is inconsistent and every threshold derived from it is wrong. That assertion is the cheapest test in this course and it catches the most expensive class of bug.
+:::chart[Where the regret comes from — review ₹3,000, cap 25%]{type="bar" y="regret per case" prefix="₹" hmarks="774:always review (no model)" labels="true"}
+component, noisy model, overconfident model
+belief error, 326, 877
+constraint (25% cap), 1859, 945
+total, 2185, 1821
+:::
+
+What the bars say:
+
+- **For the noisy model the cap costs 5.7× the model error** (₹1,859 vs ₹326). A quarter of engineering spent shrinking the small bar cannot touch the large one. Compute both before deciding what to optimise.
+- **Always compare to the no-model baseline.** "Always review" has regret ₹774. The noisy model beats it by ₹448 per case; the overconfident one *loses* ₹103 per case to it. A model that loses to a constant action is subtracting value.
+- **Totals under a constraint can rank models backwards.** The overconfident model shows a lower total (₹1,821 vs ₹2,185) only because it pushes cases out of the review band on its own, so the cap binds less. Uncapped, it is 2.7× worse. Rank models on belief error; report constraint regret separately to whoever owns the cap.
+- **Even a perfect model pays ₹1,243 per case under this cap.** That number is the price of the capacity decision itself, and it is the figure to bring to the meeting where headcount is set.
+
+## 4.7 Should you pay for a second signal? EVSI
+
+Before deciding you can often buy more information: a credit-bureau pull, a document check, a call to a second model. The **expected value of sample information** compares deciding now with deciding after seeing a signal $z$, net of its price:
+
+$$
+\text{EVSI} = \underbrace{\min_a \mathbb{E}[c \mid a, p]}_{\text{decide now}}
+- \underbrace{\sum_{z} P(z)\, \min_a \mathbb{E}\big[c \mid a, P(\text{good} \mid z)\big]}_{\text{decide after the signal}}
+- c_{\text{signal}}.
+$$
+
+The posteriors come from Bayes' rule. For a binary signal that says "good" with probability $s$ on good cases and "bad" with probability $s$ on bad cases:
+
+$$
+P(z{=}\text{good}) = s\,p + (1-s)(1-p),
+\qquad
+P(\text{good} \mid z{=}\text{good}) = \frac{s\,p}{P(z{=}\text{good})},
+\qquad
+P(\text{good} \mid z{=}\text{bad}) = \frac{(1-s)\,p}{1 - P(z{=}\text{good})}.
+$$
+
+:::example[Worked example · a ₹250 bureau pull at p = 0.90, accuracy 0.90, review ₹3,000]
+**Decide now.** Decline \(0.9 \times 24{,}000 = 21{,}600\); review \(3{,}000\); approve \(0.1 \times 120{,}000 = 12{,}000\). Best: review, ₹3,000.
+
+**Signal probabilities.** $P(z{=}\text{good}) = 0.9 \times 0.9 + 0.1 \times 0.1 = 0.82$.
+
+**After "good".** $P(\text{good} \mid z) = 0.81/0.82 = 0.9878 > p_{hi} = 0.975$, so approve: \(0.0122 \times 120{,}000\) = ₹1,463.
+
+**After "bad".** $P(\text{good} \mid z) = 0.09/0.18 = 0.50$, inside the band, so review: ₹3,000.
+
+**Decide after.** \(0.82 \times 1{,}463 + 0.18 \times 3{,}000 = 1{,}200 + 540\) = ₹1,740.
+
+**EVSI** = 3,000 − 1,740 − 250 = **₹1,010 per case**. Buy the signal.
+:::
+
+The general rule: a signal has value only if some outcome of it **moves the posterior across a cut point**. If every possible posterior lands in the same region as the prior, the action does not change and the EVSI is exactly $-c_{\text{signal}}$.
+
+```python run
+"""EVSI: is one more signal worth buying before deciding?"""
+C_FP, C_FN, REVIEW = 120_000.0, 24_000.0, 3_000.0
+
+
+def best(p):
+    """Cheapest expected cost over decline / review / approve at P(good) = p."""
+    return min(p * C_FN, REVIEW, (1 - p) * C_FP)
+
+
+def evsi(prior, acc, price):
+    """Binary signal that says 'good' with P(acc | good) and P(1 - acc | bad)."""
+    p_pos = acc * prior + (1 - acc) * (1 - prior)
+    post_pos = acc * prior / p_pos
+    post_neg = (1 - acc) * prior / (1 - p_pos)
+    after = p_pos * best(post_pos) + (1 - p_pos) * best(post_neg)
+    return best(prior) - after - price
+
+
+print("%6s %10s %10s %10s" % ("prior", "acc 0.80", "acc 0.90", "acc 0.99"))
+for prior in (0.05, 0.20, 0.50, 0.80, 0.90, 0.95, 0.99):
+    print("%6.2f" % prior + "".join("%10.0f" % evsi(prior, a, 250.0) for a in (0.8, 0.9, 0.99)))
+```
+
+```output
+ prior   acc 0.80   acc 0.90   acc 0.99
+  0.05        20       410       761
+  0.20       830      1490      2084
+  0.50      -250        50      2030
+  0.80      -250      -250      2318
+  0.90      -250      1010      2414
+  0.95       860      1730      2513
+  0.99        92       506       879
+```
+
+:::chart[EVSI of a ₹250 signal across the prior — value concentrates near the cut points]{type="line" x="prior P(good)" y="EVSI per case" prefix="₹" hmarks="0:buy above this line" marks="0.125:p_lo;0.975:p_hi" dash="signal 90%" points="false"}
+prior, signal 90%, signal 99%
+0.025, -70, 240
+0.050, 410, 761
+0.075, 890, 1282
+0.100, 1370, 1802
+0.125, 1850, 2322
+0.150, 1730, 2243
+0.175, 1610, 2164
+0.200, 1490, 2084
+0.225, 1370, 2004
+0.250, 1250, 1925
+0.275, 1130, 1846
+0.300, 1010, 1838
+0.325, 890, 1862
+0.350, 770, 1886
+0.375, 650, 1910
+0.400, 530, 1934
+0.425, 410, 1958
+0.450, 290, 1982
+0.475, 170, 2006
+0.500, 50, 2030
+0.525, -70, 2054
+0.550, -190, 2078
+0.575, -250, 2102
+0.600, -250, 2126
+0.625, -250, 2150
+0.650, -250, 2174
+0.675, -250, 2198
+0.700, -250, 2222
+0.725, -250, 2246
+0.750, -250, 2270
+0.775, -250, 2294
+0.800, -250, 2318
+0.825, -70, 2342
+0.850, 290, 2366
+0.875, 650, 2390
+0.900, 1010, 2414
+0.925, 1370, 2438
+0.950, 1730, 2513
+0.975, 2090, 2617
+:::
+
+The 90%-accurate signal is worthless across $[0.575, 0.80]$: no outcome can push a prior there out of the review band. It peaks at the band edges, where one observation flips a ₹3,000 review into a cheap automatic decision. In practice: **call the expensive second signal only for cases near a cut point**, which is a routing rule you can compute from this curve.
+
+## 4.8 When you trust neither the probabilities nor the costs
+
+Expected cost needs two things: a calibrated $p$ and defensible costs. A new product segment has neither. Suppose the model's $P(\text{good})$ for the segment is contested between 0.85 and 0.99, the loss on a bad approval is somewhere between ₹60,000 and ₹240,000, and review needs a field visit costing ₹8,000 (all illustrative). With scenario set $S$, three criteria:
+
+$$
+\begin{aligned}
+\text{Expected cost (nominal } s_0\text{):}\quad & \arg\min_a \; c(a, s_0) \\
+\text{Maximin (best worst case):}\quad & \arg\min_a \; \max_{s \in S} c(a, s) \\
+\text{Minimax regret:}\quad & \arg\min_a \; \max_{s \in S} \Big( c(a, s) - \min_{a'} c(a', s) \Big)
+\end{aligned}
+$$
+
+```python run
+"""Deep uncertainty: no trusted p, no trusted cost. Compare decision criteria."""
+import itertools
+
+C_FN, REVIEW = 24_000.0, 8_000.0
+P_GOOD = (0.85, 0.95, 0.99)                    # contested P(good) for the new segment
+C_FP = (60_000.0, 120_000.0, 240_000.0)        # contested loss on a bad approval
+SCEN = list(itertools.product(P_GOOD, C_FP))
+
+
+def cost(action, p, c_fp):
+    return {"decline": p * C_FN, "review": REVIEW, "approve": (1 - p) * c_fp}[action]
+
+
+ACTIONS = ("decline", "review", "approve")
+table = {a: [cost(a, p, c) for p, c in SCEN] for a in ACTIONS}
+best_in = [min(table[a][i] for a in ACTIONS) for i in range(len(SCEN))]
+regret = {a: [table[a][i] - best_in[i] for i in range(len(SCEN))] for a in ACTIONS}
+
+print("%-8s %10s %10s %10s %10s" % ("action", "nominal", "worst", "max regret", "mean"))
+for a in ACTIONS:
+    nominal = cost(a, 0.95, 120_000.0)
+    print("%-8s %10.0f %10.0f %10.0f %10.0f" % (a, nominal, max(table[a]), max(regret[a]),
+                                               sum(table[a]) / len(SCEN)))
+print()
+print("expected cost (nominal p=0.95, c_FP=120k):", min(ACTIONS, key=lambda a: cost(a, 0.95, 120e3)))
+print("maximin (min worst cost):               ", min(ACTIONS, key=lambda a: max(table[a])))
+print("minimax regret:                         ", min(ACTIONS, key=lambda a: max(regret[a])))
+print("approve wins in %d of %d scenarios" % (sum(table["approve"][i] == best_in[i]
+                                                   for i in range(len(SCEN))), len(SCEN)))
+```
+
+```output
+action      nominal      worst max regret       mean
+decline       22800      23760      23160      22320
+review         8000       8000       7400       8000
+approve        6000      36000      28000       9800
+
+expected cost (nominal p=0.95, c_FP=120k): approve
+maximin (min worst cost):                review
+minimax regret:                          review
+approve wins in 5 of 9 scenarios
+```
+
+Expected cost at the nominal point says approve (₹6,000 vs ₹8,000). Approve is in fact the best action in 5 of the 9 scenarios — and in the worst one ($p = 0.85$, ₹240,000 loss) it costs ₹36,000 per case. Both robust criteria pick review; so does the equal-weight average (₹8,000 vs ₹9,800). How to choose:
+
+| Situation | Criterion | Why |
+| --- | --- | --- |
+| Calibrated $p$, signed-off costs | Expected cost | It is the only criterion that minimises the long-run bill |
+| Costs known, probabilities contested (new segment, drift) | Minimax regret | Limits how much you can regret versus the best action in hindsight |
+| Ruinous tails, regulator asks about the worst case | Maximin | Bounds the worst outcome; accepts paying more on average |
+| Neither, but a scenario set exists | Run all three; if they agree, ship; if not, buy information (§4.7) | Disagreement is the signal that data is worth more than modelling |
+
+The robust choice here is temporary. Reviewing the new segment produces outcome labels; once the probabilities are calibrated, switch back to expected cost and let the review band narrow.
+
+## 4.9 Practical rules
+
+- **Write the cost matrix first**, in currency, signed by the owner of the P&L line. Derive $p^*$, $p_{lo}$, $p_{hi}$ and $r_{max}$ before training anything.
+- **Price the review at what it costs the business**, including queue loss; ops-sheet time cost understated it by about 3.3× in §4.4 (₹900 vs ₹3,000).
+- **Convert the review share into headcount** before shipping: volume × review share ÷ reviewer throughput.
+- **Report regret, not just accuracy**: belief error to the ML team, constraint regret to the capacity owner, and always the best-constant-action baseline.
+- **Use the flatness of the cost curve**: the cost ratio needs to be right within about 2×; spend the effort on calibration and on the ratio, not on the third digit of the threshold.
+- **Buy signals only near cut points**, where EVSI is positive; elsewhere the signal cannot change the action.
+
+:::warn[Failure modes that look like model problems]
+- **Threshold 0.5 in production** — a cost claim nobody made; costs 46% more per case in §4.5.
+- **Review band that nobody can staff** — the policy silently degrades into whatever the queue does.
+- **Ranking models under a cap** — rewards overconfidence that empties the review band (§4.6).
+- **Uncalibrated scores fed into cost formulas** — every cut point is correct for the wrong probability.
+:::
+
+## 4.10 Threshold lab
+
+Drag the three costs and the model's $p$. Watch $p_{lo}$ and $p_{hi}$ move, and the band vanish as the review cost passes $c_{FP} c_{FN}/(c_{FP}+c_{FN})$.
+
+:::exercise[Exercise 4.1 · Threshold lab]{id="threshold" fp="120000" fn="24000" review="900" actions="decline,manual_review,auto_approve" currency="₹"}
+:::
+
+Try: (1) raise the review to ₹3,000 and confirm the band is $[0.125, 0.975]$; (2) raise it to ₹20,000 and watch the band collapse onto 0.833; (3) set the declined-good cost to ₹120,000 and see $p^*$ fall to 0.5.
+
+## 4.11 Check yourself
+
+:::qa[A fraud team says a missed fraud costs ₹50,000 and a blocked legitimate payment costs ₹2,000. What block threshold on P(fraud) should they use?]
+Blocking is the "act" action; it is wrong when the payment is legitimate (₹2,000) and not acting is wrong when it is fraud (₹50,000). Block when $P(\text{fraud})\cdot 50{,}000 > (1 - P(\text{fraud}))\cdot 2{,}000$, i.e. $P(\text{fraud}) > 2{,}000/52{,}000 = 0.0385$. A 4% fraud probability is enough to block.
+:::
+
+:::qa[With c_FP = ₹120,000 and c_FN = ₹24,000, what is the most a review can cost before the review band disappears, and why that number?]
+$r_{max} = c_{FP}c_{FN}/(c_{FP}+c_{FN})$ = ₹20,000. It is the expected cost of the cheaper automatic action at its worst point, $p^* = 0.833$, where approve and decline both cost ₹20,000. A review costing more than that is beaten everywhere by an automatic decision.
+:::
+
+:::qa[Your model's regret is ₹900 per case and "always review" has regret ₹774. What do you ship?]
+"Always review" (if capacity allows) while you fix the model, because the model is subtracting ₹126 per case versus a constant action. Check calibration first: the overconfident model in §4.6 lost to the constant action for exactly this reason.
+:::
+
+:::qa[A 90%-accurate ₹250 signal is offered for every case. Your priors are mostly between 0.6 and 0.8 and review costs ₹3,000. Buy it?]
+No. In that range neither signal outcome moves the posterior out of the review band $[0.125, 0.975]$ — e.g. from 0.8 a positive signal gives \(0.72/0.74 = 0.973 < 0.975\) — so EVSI is exactly −₹250. Buy it only for cases near the cut points.
+:::
+
+:::qa[Expected cost says approve; maximin and minimax regret say review. Which do you choose?]
+It depends on what you trust. If the probabilities are calibrated and the costs signed off, expected cost. If the segment is new and the inputs are contested, the robust choice (review) — and use the reviews to collect labels so you can return to expected cost. When criteria disagree, information is usually worth more than modelling.
+:::
+
+Next: [§5 Why SLMs for decisions](/c/practical-slm-decision-models/05-why-slms) — the same cost arithmetic applied to the choice of model.
