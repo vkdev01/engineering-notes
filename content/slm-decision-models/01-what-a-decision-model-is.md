@@ -2,118 +2,209 @@
 section: "1"
 title: "What a decision model is"
 kicker: "Orientation"
-abstract: "A practical, end-to-end guide to turning small language models (SLMs) into decision systems you can test, measure and ship."
-time: "5 min"
+abstract: "A decision model turns an observation into one action from a closed set by weighing a probability against a cost matrix. One page: the five parts, a two-applicant worked example, how it differs from a classifier, and what every decision must log."
+time: "9 min"
 order: 1
 outcomes:
-  - "Say what separates a decision model from a chat model"
-  - "Name the six stages of the conversion pipeline"
-  - "Place your own problem on the learning path"
+  - "Fill in the five parts of a decision (observation, actions, outcomes, costs, policy) for your workflow"
+  - "Compute the approve/decline threshold 0.833 and the review band from three costs"
+  - "Show why two applicants with the same label can deserve different actions"
+  - "List the fields a decision log needs to replay a decision months later"
 ---
 
-- **135M–4B** — Typical SLM parameter range used in this guide
-- **8 guides** — Fundamentals → distillation → fine-tuning → hybrid systems
-- **4 notebooks** — Runnable, end-to-end with CPU-only defaults
-- **6 domains** — Healthcare, finance, industrial, gaming, education, autonomy
+A lender pre-screens 100,000 loan applications a month. The first system was a classifier: it labelled each applicant `good` or `bad` and approved every `good`. Six months later defaults are too high, the model's accuracy is fine, and nobody can say which number to change. The classifier answered the question it was asked. Nobody had asked the real one: *what does a wrong approval cost compared with a wrong decline, and what should we do about this case?* This handbook is about systems that answer the real question.
 
-A language model becomes a **decision model** the moment its output is used to pick an action. That single
-change raises the bar: a chat model can be "roughly right", a decision model cannot. It must return a defined
-label or action, with a calibrated confidence, an explicit abstain option, a bounded latency, and a documented
-failure mode for every input it will see in production.
+:::key[First principle]
+A decision model outputs an **action**, not a label. It combines a probability over outcomes with a cost for every (action, outcome) pair and picks the action with the lowest expected cost. The model supplies the probability; the costs and the action set are business inputs written down before training.
+:::
 
-This site is the written companion to the [slm-decision-models](https://github.com/vkdev01/slm-decision-models)
-repository. Every chapter follows the same shape: the concept, the maths, the numbers you should expect, a working
-code path, and the test that proves it still works after your next change.
+## 1.1 The five parts of a decision
 
-## What "decision model" means here
+| Part | Symbol | Loan triage (running example) | If it is missing |
+| --- | --- | --- | --- |
+| **Observation** | $x$ | Application form, bureau features, bank-statement summary | Nothing to decide on |
+| **Action set** (closed) | $\mathcal{A}$ | `auto_approve`, `manual_review`, `decline` | Downstream code cannot branch on free text |
+| **Outcomes** | $y$ | `good` (repays), `bad` (defaults) | No definition of "right" |
+| **Cost matrix** | $C(a, y)$ | below | Every threshold is a guess |
+| **Policy** | $\pi(x)$ | Cheapest action in expectation, within review capacity | The score never becomes an action |
 
-A decision model is a function from a messy observation to a committed action under uncertainty. Formally, with
-observation `x`, action space `A`, and a utility function `u(a, y)` over the true outcome `y`:
+The cost matrix for the loan example, in INR:
 
-```text
-a* = argmax_a  E_{p(y|x)}[ u(a, y) ]
-```
+| Action \ outcome | `good` | `bad` |
+| --- | ---: | ---: |
+| `auto_approve` | 0 | 120,000 (loss on a default) |
+| `manual_review` | $r$ | $r$ |
+| `decline` | 24,000 (lost margin) | 0 |
 
-Three properties separate this from ordinary text generation:
+The review row is flat: a reviewer costs the same whatever the applicant turns out to be. The ops sheet says $r$ = ₹900 (reviewer time); priced honestly — salary, queue delay, applicants who leave while waiting — it is nearer ₹3,000 (illustrative, itemised in [the deep course](/c/practical-slm-decision-models/04-decision-theory)).
 
-| Property | Chat model | Decision model |
+The policy is one line:
+
+$$
+\pi(x) = \arg\min_{a \in \mathcal{A}} \sum_{y} P(y \mid x)\, C(a, y)
+$$
+
+Only $P(y \mid x)$ comes from a model. Everything else is a decision someone signs.
+
+## 1.2 Worked example: same label, different actions
+
+With $p = P(\text{good} \mid x)$, the three expected costs are straight lines in $p$: approve costs $(1-p) \times 120{,}000$, decline costs $p \times 24{,}000$, review costs $r$.
+
+:::example[Worked example · two applicants an argmax classifier both labels "good"]
+| Applicant | $p$ | Label | Approve | Decline | Review (₹3,000) | Two actions | Three actions |
+| --- | ---: | --- | ---: | ---: | ---: | --- | --- |
+| A | 0.62 | good | ₹45,600 | ₹14,880 | ₹3,000 | **decline** | **review** |
+| B | 0.97 | good | ₹3,600 | ₹23,280 | ₹3,000 | **approve** | **review** |
+
+Same label, different actions. A has a 38% chance of default, so approving costs three times what declining does. B is a close call: approving costs ₹3,600 against a ₹3,000 review — at $p$ = 0.98 approval would win (₹2,400).
+:::
+
+The label rounded each probability to one bit at 0.5 and threw away exactly the number the decision needs. Keep the probability; let the costs set the cut.
+
+## 1.3 Decision model vs classifier
+
+| | Classifier | Decision model |
 | --- | --- | --- |
-| Output space | Open text | Closed set of labels or actions, schema-validated |
-| Uncertainty | Implicit, usually uncalibrated | Explicit score + calibration check (ECE, reliability curve) |
-| Failure handling | Free-form apology | Abstain / escalate, with a defined escalation path |
-| Evaluation | Human preference, LLM-as-judge | Cost-weighted accuracy, regret, coverage at fixed risk |
-| Latency budget | Seconds, tolerated | p95 budget enforced, usually 20–800 ms |
+| Output | A label (`good`) | An action (`manual_review`) plus $p$ and the expected costs |
+| Threshold | 0.5, implicitly (argmax) | Derived from costs: $p^* = c_{AB}/(c_{AB}+c_{DG})$ |
+| Uncertainty | Discarded | Used: calibrated $p$, an explicit review action |
+| Judged by | Accuracy, F1 | Cost per case, review volume, regret |
+| Changes when | Model or data change | Model, data **or costs** change |
+| Owner | ML team | ML + product + risk + operations |
 
-## The conversion pipeline
+Here $c_{AB}$ is the cost of approving a bad case and $c_{DG}$ of declining a good one. Approve beats decline when $(1-p)\,c_{AB} < p\,c_{DG}$, i.e. when
 
-:::mermaid[The pipeline]
+$$
+p > p^* = \frac{c_{AB}}{c_{AB} + c_{DG}} = \frac{120{,}000}{144{,}000} = 0.833 .
+$$
+
+A bad approval costs five times a wrong decline, so the model must be 5:1 confident before approving. Shipping `argmax` (0.5) approves every case in $[0.5, 0.833)$ — each one a loss by the team's own numbers. On the [quick-start](/c/slm-decision-models/02-quick-start) data that costs ₹917 per case, and the 0.5 rule is the *more accurate* of the two.
+
+:::pull
+`argmax` is a policy that assumes every mistake costs the same.
+:::
+
+## 1.4 Review is an action with a price
+
+Review wins where it undercuts both sloped lines: $r < p\,c_{DG}$ and $r < (1-p)\,c_{AB}$. So the band is
+
+$$
+\frac{r}{c_{DG}} < p < 1 - \frac{r}{c_{AB}}, \qquad \text{which exists only while } r < \frac{c_{AB}\,c_{DG}}{c_{AB} + c_{DG}} = 20{,}000 .
+$$
+
+| Review price $r$ | Decline below | Approve above | What it means |
+| ---: | ---: | ---: | --- |
+| ₹900 (ops sheet) | 0.0375 | 0.9925 | 95.5% of the $p$-range goes to humans |
+| ₹3,000 (honest, illustrative) | 0.125 | 0.975 | Narrower, still wide |
+| ₹20,000 | 0.833 | 0.833 | Band vanishes: pure approve/decline |
+
+:::warn[A cheap review is a trap]
+At ₹900 the arithmetic sends most traffic to people — 91.8% of cases on the quick-start data. Price the review at what it costs the business, then multiply the review share by monthly volume before promising an automation rate. Capacity caps and what they cost are in [§4](/c/slm-decision-models/04-decision-theory).
+:::
+
+## 1.5 The decision loop
+
+```mermaid
 flowchart LR
-  F[1 · Frame<br/>actions, costs, abstain] --> D[2 · Data<br/>labels, hard cases]
-  D --> T[3 · Distil<br/>teacher to SLM]
-  T --> U[4 · Tune<br/>LoRA, task head]
-  U --> C[5 · Calibrate<br/>temperature, conformal]
-  C --> P[6 · Deploy<br/>quantise, serve, monitor]
-  P -.->|every production miss| D
-:::
+  X[Observation x] --> M[Model: P of outcome]
+  M --> P[Policy: costs, band, capacity]
+  P --> A[Action]
+  A --> L[(Decision log)]
+  A --> O[Outcome, weeks later]
+  O --> L
+  L -.->|retrain, recalibrate| M
+  L -.->|reprice costs| P
+```
 
-## Learning path
+The model owns one arrow. The loop has two feedback edges with different owners: outcomes retrain and recalibrate the model (ML team), and outcomes also reveal whether the costs were right — the real loss on a default, the real price of a review — which reprices the policy (product, risk, operations).
 
-- **New to SLMs** — Read [SLM fundamentals](/c/slm-decision-models/03-slm-fundamentals), then [why SLMs for decisions](/c/slm-decision-models/05-why-slms). Skim the notebooks.
-- **ML engineer** — Jump to [distillation](/c/slm-decision-models/06-distillation) and [fine-tuning](/c/slm-decision-models/07-fine-tuning), then [benchmarking](/c/slm-decision-models/24-benchmarking).
-- **Product / domain lead** — [Decision theory](/c/slm-decision-models/04-decision-theory) for the framing, then the [use cases](/c/slm-decision-models/15-healthcare) closest to yours.
-- **Platform / SRE** — [Docker](/c/slm-decision-models/25-docker), [edge](/c/slm-decision-models/27-edge-devices), [CI/CD](/c/slm-decision-models/28-cicd) and the [edge-case](/c/slm-decision-models/23-edge-cases) suite.
+## 1.6 What every decision must log
 
-## Numbers to keep in your head
-
-These are published reference points, not results measured on your data. Reproduce them with the scripts in
-`benchmarks/` before quoting them internally.
-
-| Quantity | Reference value | Source / caveat |
+| Field | Example | Why |
 | --- | --- | --- |
-| DistilBERT vs BERT-base | 40% fewer parameters, 60% faster, ~97% of GLUE retained | Sanh et al., 2019 — the canonical proof that a 66M model can carry a 110M model's task behaviour |
-| LoRA trainable parameters | 0.01%–1% of full weights | Hu et al., 2021 — rank 8–64 adapters on attention projections |
-| INT8 weight memory | 4× smaller than FP32, 2× smaller than FP16 | Arithmetic, not a benchmark: 1 byte vs 4 bytes per weight |
-| INT4 weight memory | 8× smaller than FP32 | Quality loss is task-dependent; always re-run the eval suite |
-| Calibration gap | Modern deep nets are typically over-confident; ECE of 0.05–0.15 is common pre-calibration | Guo et al., 2017 — measure your own ECE, never assume |
-| Conformal guarantee | Coverage ≥ 1 − α on exchangeable data | Angelopoulos & Bates, 2021 — distribution-free, but assumes exchangeability |
-| Self-consistency gain | Typically +5 to +17 points on arithmetic reasoning benchmarks | Wang et al., 2023 — costs k× inference; usually unaffordable for real-time decisions |
+| `request_id`, `ts` | `app-81723`, ISO timestamp | Join to the outcome when it arrives |
+| `p_good` | 0.62 | Recompute the action under new costs without re-running the model |
+| `expected_cost` | `{decline: 14880, review: 3000, approve: 45600}` | A near-tie and a landslide look identical in `action` alone |
+| `action`, `reason` | `manual_review`, `p in review band [0.125, 0.975)` | What was done and which rule fired |
+| `model_version` | `loan-clf-2026-11-01` | Which weights produced $p$ |
+| `policy_version` | `costs-v3:120000/24000/3000` | Which cost matrix turned $p$ into an action |
 
-:::warn[Read this before trusting any table]
-Every performance table in this site is either attributed to a published paper or marked *illustrative*.
-Latency and accuracy depend on your hardware, your tokenizer, your label set and your data. The repo ships the
-scripts; run them on your machine and replace the numbers.
-:::
+Version the model and the policy **separately**. Repricing the review from ₹900 to ₹3,000 changes thousands of actions without touching a weight.
 
-## Repository map
+## 1.7 The section in one script
 
-```text
-slm-decision-models/
-├── docs/                    # this site (GitHub Pages source, served from /docs)
-├── code/src/slm_decision/   # the Python library used in every example
-├── notebooks/               # 4 runnable .ipynb tutorials
-├── tests/                   # pytest suite: metrics, calibration, policies, schema
-├── benchmarks/              # latency + accuracy harness
-└── requirements.txt
+```python run
+"""Five parts of a decision, two applicants, one log record."""
+import json
+
+C_AB, C_DG, REVIEW = 120_000, 24_000, 3_000      # approve-bad, decline-good, review (INR)
+
+
+def expected_costs(p):
+    return {"decline": p * C_DG, "manual_review": REVIEW, "auto_approve": (1 - p) * C_AB}
+
+
+def decide(p, actions=("decline", "manual_review", "auto_approve")):
+    costs = {a: c for a, c in expected_costs(p).items() if a in actions}
+    return min(costs, key=costs.get), costs
+
+
+p_star = C_AB / (C_AB + C_DG)
+print(f"p* = {p_star:.4f}; review band [{REVIEW / C_DG:.4f}, {1 - REVIEW / C_AB:.4f}); "
+      f"band vanishes at r = {C_AB * C_DG / (C_AB + C_DG):,.0f}")
+for name, p in (("A", 0.62), ("B", 0.97)):
+    two, _ = decide(p, ("decline", "auto_approve"))
+    three, _ = decide(p)
+    print(f"{name}: p={p:.2f} argmax label={'good' if p > 0.5 else 'bad'} "
+          f"two actions -> {two}, three actions -> {three}")
+
+action, costs = decide(0.62)
+record = {"request_id": "app-81723", "p_good": 0.62, "action": action,
+          "expected_cost": {a: round(c) for a, c in costs.items()},
+          "model_version": "loan-clf-2026-11-01", "policy_version": "costs-v3:120000/24000/3000"}
+print(json.dumps(record))
 ```
 
-## Sixty-second taste
-
-```python
-from slm_decision import DecisionSpec, RulePolicy, calibrate, expected_cost
-
-spec = DecisionSpec(
-    actions=["approve", "review", "decline"],
-    costs={("approve", "bad"): 10.0, ("decline", "good"): 3.0, ("review", "good"): 0.5},
-    abstain="review",
-)
-
-# A policy is anything that maps a signal in [0,1] to an action under a cost matrix.
-policy = RulePolicy(spec, threshold=0.62)
-print(policy.act(0.71))          # 'approve'
-print(expected_cost(spec, policy, y_true=[1, 0, 1], scores=[0.71, 0.55, 0.9]))
+```output
+p* = 0.8333; review band [0.1250, 0.9750); band vanishes at r = 20,000
+A: p=0.62 argmax label=good two actions -> decline, three actions -> manual_review
+B: p=0.97 argmax label=good two actions -> auto_approve, three actions -> manual_review
+{"request_id": "app-81723", "p_good": 0.62, "action": "manual_review", "expected_cost": {"decline": 14880, "manual_review": 3000, "auto_approve": 45600}, "model_version": "loan-clf-2026-11-01", "policy_version": "costs-v3:120000/24000/3000"}
 ```
 
-:::note[Working code, not pseudocode]
-Everything importable here exists in `code/src/slm_decision/` and is covered by the test suite. If a
-snippet on this site drifts from the library, the test suite is the source of truth — and CI will tell you.
+## 1.8 Practical rules
+
+- **Write the cost matrix before the model.** In currency, signed by whoever owns the loss. Derive $p^*$ and the band by hand on day one.
+- **Keep the probability.** Never pass a label downstream when a calibrated $p$ is available; calibration metrics are in [performance metrics](/c/slm-decision-models/29-metrics).
+- **Price review honestly** and convert its share into headcount before shipping.
+- **Gate releases on cost per case**; report accuracy as a diagnostic.
+- **Log enough to replay**: $p$, expected costs, action, model and policy versions.
+
+For the longer derivations — why the cut point is where the lines cross, and how the band moves with $r$ — see [the deep course §1](/c/practical-slm-decision-models/01-what-a-decision-model-is).
+
+## 1.9 Check yourself
+
+:::qa[A fraud team says a missed fraud costs ₹50,000 and blocking a legitimate payment costs ₹2,000. What block threshold on P(fraud) follows?]
+Block when $P(\text{fraud}) \times 50{,}000 > (1 - P(\text{fraud})) \times 2{,}000$, i.e. $P(\text{fraud}) > 2{,}000/52{,}000 = 0.038$. A 4% fraud probability is enough to block — nowhere near 0.5.
 :::
+
+:::qa[Why log p_good when you already log the action?]
+Costs change. With $p$ logged you can recompute every past action under a new cost matrix (say review repriced from ₹900 to ₹3,000) and measure the impact offline, without re-running the model.
+:::
+
+:::qa[The review costs ₹25,000 per case. Should the policy ever review?]
+No. The band exists only while $r < c_{AB}c_{DG}/(c_{AB}+c_{DG})$ = ₹20,000, the worst expected cost of the cheaper automatic action (at $p^* = 0.833$). Above that, approve or decline is always cheaper.
+:::
+
+:::qa[A retrained model's accuracy rises from 0.86 to 0.90. Ship it?]
+Not on accuracy. In the quick start, the 0.5 rule is more accurate on automated cases (0.902) than the cost threshold (0.865) yet costs ₹917 more per case. Compare cost per case and review share under the same cost matrix.
+:::
+
+## Where to go next
+
+- **Run it**: [Quick start](/c/slm-decision-models/02-quick-start) — data to cost-optimal policy in one script.
+- **Pick an engine**: [SLM fundamentals](/c/slm-decision-models/03-slm-fundamentals), then [why SLMs](/c/slm-decision-models/05-why-slms).
+- **Frame decisions rigorously**: [Decision theory](/c/slm-decision-models/04-decision-theory).
+- **Ship it**: [Docker](/c/slm-decision-models/25-docker), [CI/CD](/c/slm-decision-models/28-cicd), [edge cases](/c/slm-decision-models/23-edge-cases).
+
+Next: [Quick start](/c/slm-decision-models/02-quick-start).
