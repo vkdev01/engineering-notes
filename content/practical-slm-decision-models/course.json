@@ -1,7 +1,7 @@
 {
   "order": 6,
   "title": "Practical SLM Decision Models",
-  "subtitle": "A first-principles, engineering-focused course on deciding when and how to use small language models: decision theory, calibration, adaptation, hybrid systems, evaluation, serving, security, and a complete capstone.",
-  "version": "Reference 2.1",
-  "status": "expanded draft"
+  "subtitle": "A first-principles engineering course on choosing, building, evaluating, and operating small-language-model decision systems—with derivations, worked numbers, executable Python, testing, deployment, governance, and an end-to-end capstone.",
+  "version": "Reference 3.0",
+  "status": "complete"
 }
