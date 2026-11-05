@@ -1,10 +1,10 @@
 ---
-section: "20"
-title: "Revision guide, glossary, and references"
+section: "Appendix B"
+title: "Appendix B — revision guide, glossary, and references"
 kicker: "Mastery"
 abstract: "Consolidate the course into a repeatable decision framework, a compact glossary, and primary references for deeper study."
 time: "20 min"
-order: 20
+order: 22
 outcomes:
   - "Apply a complete SLM-versus-alternative decision framework"
   - "Recall the core equations and operational definitions"
