@@ -1,3 +1,15 @@
+---
+section: "20"
+title: "Decision review, operating playbook, and mastery checklist"
+kicker: "Mastery and release readiness"
+abstract: "Turn the course into a defensible model-and-system decision using expected-cost analysis, cost-derived thresholds, abstention, production gates, and a repeatable review process."
+time: "25 min"
+order: 20
+outcomes:
+  - "Compare complete architectures using explicit quality, latency, risk, and cost constraints"
+  - "Calculate expected operating cost and derive decision thresholds from error costs"
+  - "Design abstention, escalation, release gates, monitoring, and rollback criteria"
+---
 # 20. Decision review, operating playbook, and mastery checklist
 
 This final chapter turns the course into a repeatable engineering decision process. The goal is not to prove that a small language model (SLM) is always preferable. The goal is to choose the least complex system that satisfies the product's quality, latency, privacy, reliability, and cost constraints—and to know when the evidence says not to ship it.
