@@ -118,7 +118,8 @@ The filename is the URL: `content/harness-engineering/03-repo-as-source-of-truth
 
 ### Directives
 
-Four block directives, each closed by a line containing only `:::`:
+Block directives, each closed by a line containing only `:::`. They nest, and their bodies may
+contain code fences, math, tables and other directives:
 
 ```markdown
 :::note[Note 2.1.a — measurement]
@@ -142,11 +143,45 @@ A large serif pull quote.
 :::qa[Why does adding rules to AGENTS.md make the agent worse?]
 The answer, rendered as a collapsible row. Good for interview drills.
 :::
+
+:::key[First principle]        accent box for the core idea
+:::example[Worked example · …] step-by-step numbers
+:::tip[…]                      practical advice
+:::details[Show the derivation] collapsible block
+:::mermaid[Caption]            same as a ```mermaid fence, with a caption
 ```
 
-Anything else is normal GitHub-flavoured markdown: headings, tables, lists, code fences,
-links, blockquotes. `##` headings are automatically given ids and listed in the sidebar under
-the active section.
+Anything else is normal GitHub-flavoured markdown: headings, tables (with column alignment),
+task lists, code fences, links, blockquotes. `##` headings are automatically given ids and
+listed in the sidebar under the active section.
+
+### Math, code and diagrams
+
+- **Math (KaTeX):** inline `$…$` or `\(…\)`, display `$$…$$` or `\[…\]` on their own lines.
+  A digit after `$` never opens math, so `$500` stays currency; inline math that starts with a
+  digit must use `\(…\)`.
+- **Code:** fences are syntax-highlighted (highlight.js) and get a copy button.
+  ```` ```python run ```` marks a block as runnable as-is; put its real stdout in an
+  ```` ```output ```` fence right after.
+- **Diagrams:** ```` ```mermaid ```` fences render client-side and re-render on theme change.
+
+### Charts
+
+`:::chart` turns a CSV body into a themed SVG chart (first row = header, first column = x):
+
+```markdown
+:::chart[Expected cost vs P(good)]{type="line" x="P(good)" y="cost" prefix="₹" marks="0.833:threshold"}
+p, approve, decline
+0, 120000, 0
+1, 0, 24000
+:::
+```
+
+Options: `type` = line | area | scatter | bar; `stacked`, `xlog`, `ylog`, `diag`, `points`,
+`labels` (`"true"`); `xmin xmax ymin ymax`; `xfmt`/`yfmt` = pct | int | dec1 | dec2 | dec3;
+`prefix`, `unit`, `xprefix`, `xunit`; `marks="x:label;…"` (vertical lines, numeric x only),
+`hmarks="y:label"`, `band="x0:x1:label"`, `dash="series,…"`, `note`, `height`. Up to six
+series. Quote cells that contain commas, or use `|` as the separator.
 
 ### Figures
 
@@ -174,6 +209,7 @@ Exercises are React components registered by id. Three ship with the template:
 | `scorecard` | `labels`, `scale`, `hints`, `unit` | Sliders per criterion, reports the **minimum** and a verdict |
 | `budget` | `window`, `perLine`, `perFile`, `tool`, `lines`, `files` | Context-window budget bars that react to two sliders |
 | `checklist` | `items` (semicolon-separated), `grades` | Yes/No list that grades the result |
+| `threshold` | `fp`, `fn`, `review`, `actions`, `currency` | Cost sliders that derive the decision cut points and review band |
 
 All props are strings, passed straight from the directive.
 
@@ -343,11 +379,12 @@ app/
   globals.css                   design system and the seven schemes
 components/
   TopBar.tsx  ThemePicker.tsx  SectionBody.tsx  ChatPanel.tsx  ChatButton.tsx
-  ContentsNav.tsx  MenuToggle.tsx
-  exercises/                    Scorecard, ContextBudget, Checklist, registry
+  ContentsNav.tsx  MenuToggle.tsx  Chart.tsx  CodeCopy.tsx  Mermaid.tsx
+  exercises/                    Scorecard, ContextBudget, Checklist, ThresholdLab, registry
 lib/
   content.ts                    scan content/, parse markdown, headings, prev/next
-  markdown.ts                   markdown → segments (html, callouts, exercises)
+  markdown.ts                   markdown → segments (html, math, callouts, charts, exercises)
+  highlight.ts                  highlight.js language set for code fences
   retrieval.ts                  chunking and BM25 across the whole library
   sarvam.ts                     Sarvam chat client
 content/
