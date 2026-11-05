@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import fs from "fs";
 import path from "path";
+import "katex/dist/katex.min.css";
 import "./globals.css";
 import TopBar from "@/components/TopBar";
 import ChatPanel from "@/components/ChatPanel";
